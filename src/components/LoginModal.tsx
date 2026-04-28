@@ -165,7 +165,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
               style={{ height: '120px', background: '#111111' }}
             >
               <img
-                src="/ChatGPT Image Apr 28, 2026, 11_13_07 PM.png"
+                src="/ChatGPT%20Image%20Apr%2028%2C%202026%2C%2011_13_07%20PM.png"
                 alt="speedcopy logo"
                 style={{
                   width: '140px',
