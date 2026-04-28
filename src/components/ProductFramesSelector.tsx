@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { Frame } from '../services/design.service';
 import designService from '../services/design.service';
-import { Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { Loader2, Image as ImageIcon } from 'lucide-react';
 
 interface ProductFramesSelectorProps {
   productId: string;
