@@ -165,13 +165,12 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
               style={{ height: '120px', background: '#111111' }}
             >
               <img
-                src="/favicon.svg"
+                src="/ChatGPT Image Apr 16, 2026, 03_06_38 PM.png"
                 alt="speedcopy logo"
                 style={{
-                  width: '80px',
+                  width: '120px',
                   height: '80px',
                   objectFit: 'contain',
-                  filter: 'invert(1)',
                   flexShrink: 0,
                 }}
               />
