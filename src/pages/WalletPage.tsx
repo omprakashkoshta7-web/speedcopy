@@ -37,49 +37,98 @@ const WalletPage: React.FC = () => {
     setError('');
     
     try {
-      // Use new wallet service APIs
+      // Try multiple endpoints in parallel
       const [balanceResponse, transactionResponse] = await Promise.all([
         walletService.getBalance(),
-        walletService.getTransactionHistory({ page: 1, limit: 10 })
+        walletService.getTransactionHistory({ page: 1, limit: 20 })
       ]);
       
-      // Handle response structures
-      const balanceData: any = balanceResponse.data || {};
-      const transactionData: any = transactionResponse.data || {};
+      console.log('💰 Balance response:', balanceResponse);
+      console.log('📋 Transaction response:', transactionResponse);
       
-      setBalance(balanceData.balance || 0);
-      setTransactions(transactionData.entries || []);
+      // Parse balance — handle all possible response structures
+      const balRaw: any = balanceResponse;
+      const balData: any =
+        balRaw?.data?.data ||
+        balRaw?.data ||
+        balRaw || {};
+      
+      const parsedBalance =
+        balData?.balance ??
+        balData?.walletBalance ??
+        balData?.amount ??
+        0;
+      
+      setBalance(Number(parsedBalance) || 0);
+      
+      // Parse transactions — handle all possible response structures
+      const txRaw: any = transactionResponse;
+      const txData: any =
+        txRaw?.data?.data ||
+        txRaw?.data ||
+        txRaw || {};
+      
+      const parsedTx: Transaction[] =
+        txData?.entries ||
+        txData?.transactions ||
+        txData?.data ||
+        txData?.ledger ||
+        (Array.isArray(txData) ? txData : []);
+      
+      setTransactions(parsedTx);
+
     } catch (err: any) {
-      console.error('Failed to fetch wallet data:', err);
-      console.error('Error details:', err.response?.data);
+      console.error('Primary wallet API failed:', err);
       
-      // Check if it's an authentication error
       if (err.response?.status === 401) {
         setError('auth_expired');
-        setBalance(0);
-        setTransactions([]);
         setLoading(false);
         return;
       }
       
-      // Fallback to existing finance service APIs
+      // Fallback: try finance service
       try {
-        const [walletResponse, ledgerResponse] = await Promise.all([
+        const [walletRes, ledgerRes] = await Promise.all([
           financeService.getWalletBalance(),
-          financeService.getTransactionHistory({ page: 1, limit: 10 })
+          financeService.getTransactionHistory({ page: 1, limit: 20 })
         ]);
         
-        const walletData: any = walletResponse.data?.data || walletResponse.data || {};
-        const ledgerData: any = ledgerResponse.data?.data || ledgerResponse.data || {};
+        console.log('💰 Fallback balance response:', walletRes);
+        console.log('📋 Fallback ledger response:', ledgerRes);
         
-        setBalance(walletData.balance || 0);
-        setTransactions(ledgerData.entries || ledgerData.transactions || ledgerData.data || []);
+        // Parse balance from any nesting level
+        const wRaw: any = walletRes;
+        const wData: any =
+          wRaw?.data?.data ||
+          wRaw?.data ||
+          wRaw || {};
+        
+        const fallbackBalance =
+          wData?.balance ??
+          wData?.walletBalance ??
+          wData?.amount ??
+          0;
+        
+        setBalance(Number(fallbackBalance) || 0);
+        
+        // Parse transactions
+        const lRaw: any = ledgerRes;
+        const lData: any =
+          lRaw?.data?.data ||
+          lRaw?.data ||
+          lRaw || {};
+        
+        const fallbackTx: Transaction[] =
+          lData?.entries ||
+          lData?.transactions ||
+          lData?.data ||
+          (Array.isArray(lData) ? lData : []);
+        
+        setTransactions(fallbackTx);
       } catch (fallbackErr) {
-        console.error('Fallback API calls also failed:', fallbackErr);
-        // Set default values instead of showing error
+        console.error('Fallback also failed:', fallbackErr);
         setBalance(0);
         setTransactions([]);
-        setError('');
       }
     } finally {
       setLoading(false);

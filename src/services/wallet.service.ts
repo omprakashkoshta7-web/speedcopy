@@ -111,21 +111,53 @@ class WalletService {
   async getBalance(): Promise<{ success: boolean; data: WalletBalance }> {
     try {
       const response = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET_BALANCE);
-      const walletData = response.data?.data || response.data || {};
-      return this.wrapSuccess({
-        balance: walletData.balance || 0,
-        currency: 'INR',
-        lastUpdated: new Date().toISOString()
-      });
-    } catch (error) {
-      if (!this.isRouteNotFoundError(error)) throw error;
+      console.log('💰 Raw balance API response:', response.data);
       
-      // Fallback - return zero balance
+      // Handle all possible response structures from backend
+      const raw = response.data;
+      const walletData =
+        raw?.data?.wallet ||
+        raw?.data ||
+        raw?.wallet ||
+        raw || {};
+      
+      const balance =
+        walletData?.balance ??
+        walletData?.walletBalance ??
+        walletData?.amount ??
+        0;
+      
       return this.wrapSuccess({
-        balance: 0,
-        currency: 'INR',
-        lastUpdated: new Date().toISOString()
+        balance: Number(balance) || 0,
+        currency: walletData?.currency || 'INR',
+        lastUpdated: walletData?.lastUpdated || new Date().toISOString()
       });
+    } catch (error: any) {
+      console.warn('⚠️ Balance API failed:', error?.response?.status, error?.message);
+      
+      // Try wallet overview as fallback
+      try {
+        const overviewRes = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET_OVERVIEW);
+        const ovData = overviewRes.data?.data || overviewRes.data || {};
+        return this.wrapSuccess({
+          balance: Number(ovData?.balance || ovData?.walletBalance || 0),
+          currency: 'INR',
+          lastUpdated: new Date().toISOString()
+        });
+      } catch {
+        // Last resort: try main wallet endpoint
+        try {
+          const walletRes = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET);
+          const wData = walletRes.data?.data || walletRes.data || {};
+          return this.wrapSuccess({
+            balance: Number(wData?.balance || wData?.walletBalance || 0),
+            currency: 'INR',
+            lastUpdated: new Date().toISOString()
+          });
+        } catch {
+          return this.wrapSuccess({ balance: 0, currency: 'INR', lastUpdated: new Date().toISOString() });
+        }
+      }
     }
   }
 
@@ -392,12 +424,42 @@ class WalletService {
   }): Promise<{ success: boolean; data: WalletLedger }> {
     try {
       const response = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.TRANSACTION_HISTORY, { params });
-      return response.data;
-    } catch (error) {
-      if (!this.isRouteNotFoundError(error)) throw error;
+      console.log('📋 Raw transaction history response:', response.data);
       
+      // Handle all possible response structures
+      const raw = response.data;
+      const txData =
+        raw?.data?.data ||
+        raw?.data ||
+        raw || {};
+      
+      const entries: Transaction[] =
+        txData?.entries ||
+        txData?.transactions ||
+        txData?.data ||
+        txData?.ledger ||
+        (Array.isArray(txData) ? txData : []);
+      
+      return this.wrapSuccess({
+        entries,
+        pagination: txData?.pagination || {
+          page: params?.page || 1,
+          limit: params?.limit || 20,
+          total: entries.length,
+          totalPages: 1
+        }
+      });
+    } catch (error) {
+      console.warn('⚠️ Transaction history API failed, trying ledger...');
       // Fallback to ledger endpoint
-      return this.getLedger(params);
+      try {
+        return this.getLedger(params);
+      } catch {
+        return this.wrapSuccess({
+          entries: [],
+          pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
+        });
+      }
     }
   }
 

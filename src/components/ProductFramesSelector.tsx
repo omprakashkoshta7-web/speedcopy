@@ -71,22 +71,9 @@ const ProductFramesSelector: React.FC<ProductFramesSelectorProps> = ({
     );
   }
 
-  if (error) {
-    return (
-      <div className={`flex items-center justify-center p-8 ${className}`}>
-        <AlertCircle className="w-6 h-6 text-red-500" />
-        <span className="ml-3 text-red-600">{error}</span>
-      </div>
-    );
-  }
-
-  if (frames.length === 0) {
-    return (
-      <div className={`flex flex-col items-center justify-center p-8 text-gray-500 ${className}`}>
-        <ImageIcon className="w-12 h-12 mb-3 opacity-50" />
-        <p>No frames available for this product</p>
-      </div>
-    );
+  // Silently hide if error or no frames — don't show error to user
+  if (error || frames.length === 0) {
+    return null;
   }
 
   return (

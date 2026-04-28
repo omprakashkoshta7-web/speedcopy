@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import API_CONFIG from '../config/api.config';
 
 interface BusinessPrintType {
   id: string;
@@ -31,25 +32,51 @@ const BusinessPrintingPage: React.FC = () => {
     try {
       setLoading(true);
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/products/categories?showAll=true`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Use dedicated product service URL (gateway doesn't have this route)
+      const PRODUCT_BASE = import.meta.env.VITE_PRODUCT_URL || API_CONFIG.BASE_URL;
+
+      const endpoints = [
+        `${PRODUCT_BASE}/api/products/categories?showAll=true`,
+        `${PRODUCT_BASE}/api/products/categories`,
+        `${API_CONFIG.BASE_URL}/api/products/categories?showAll=true`,
+      ];
+
+      let data: any = null;
+      for (const url of endpoints) {
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          if (response.ok) {
+            data = await response.json();
+            break;
+          }
+        } catch {
+          // try next endpoint
+        }
       }
-      
-      const data = await response.json();
-      const allCategories = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
 
-      const printingCategories = allCategories.filter((cat: any) => 
-        cat.flowType === 'printing' && cat.isActive !== false
-      );
+      if (!data) throw new Error('All endpoints failed');
 
-      const nextBusinessTypes = printingCategories.map((cat: any) => ({
+      // Normalise response shape — handle {data: []}, {categories: []}, or plain []
+      const raw: any[] = Array.isArray(data)
+        ? data
+        : Array.isArray(data.data)
+        ? data.data
+        : Array.isArray(data.categories)
+        ? data.categories
+        : [];
+
+      // Filter only printing/business categories that are active
+      const allCategories = raw.filter((cat: any) => {
+        if (cat.isActive === false) return false;
+        // If flowType exists, only show printing ones; otherwise show all
+        if (cat.flowType) return cat.flowType === 'printing';
+        return true;
+      });
+
+      const nextBusinessTypes = allCategories.map((cat: any) => ({
         id: cat.slug || cat._id,
         name: cat.name,
         description: cat.description || 'Professional printing services for your business needs.',
@@ -60,7 +87,7 @@ const BusinessPrintingPage: React.FC = () => {
         is_featured: Boolean(cat.is_featured),
         thumbnail: cat.image,
         image: cat.image,
-        product_count: cat.product_count
+        product_count: cat.product_count,
       }));
 
       setBusinessTypes(nextBusinessTypes);

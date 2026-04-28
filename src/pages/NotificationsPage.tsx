@@ -64,9 +64,15 @@ const NotificationsPage: React.FC = () => {
     return (
       <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
         <Navbar />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Please Login</h1>
-          <p className="text-gray-600">You need to be logged in to view notifications</p>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+          <div className="mb-6 px-1">
+            <h1 className="font-bold text-gray-900 mb-1" style={{ fontSize: '28px' }}>Notifications</h1>
+            <p style={{ color: '#9ca3af', fontSize: '14px' }}>Stay updated with your orders, rewards, and account activity.</p>
+          </div>
+          <div className="bg-white rounded-3xl p-12 text-center" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Please Login</h2>
+            <p className="text-gray-500" style={{ fontSize: '14px' }}>You need to be logged in to view notifications</p>
+          </div>
         </div>
       </div>
     );
@@ -76,10 +82,14 @@ const NotificationsPage: React.FC = () => {
     return (
       <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
         <Navbar />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+          <div className="mb-6 px-1">
+            <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse mb-2" />
+            <div className="h-4 w-72 bg-gray-200 rounded animate-pulse" />
+          </div>
           <div className="space-y-3">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white rounded-2xl p-5 h-24 animate-pulse" />
+              <div key={i} className="bg-white rounded-3xl p-5 h-24 animate-pulse" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }} />
             ))}
           </div>
         </div>
@@ -148,14 +158,15 @@ const NotificationsPage: React.FC = () => {
     <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
       <Navbar />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-
-        {/* Header */}
-        <div className="flex items-center justify-between mb-5 px-1">
-          <h1 className="font-bold text-gray-900" style={{ fontSize: '26px' }}>Notifications</h1>
+        <div className="flex items-start justify-between mb-6 px-1">
+          <div>
+            <h1 className="font-bold text-gray-900 mb-1" style={{ fontSize: '28px' }}>Notifications</h1>
+            <p style={{ color: '#9ca3af', fontSize: '14px' }}>Stay updated with your orders, rewards, and account activity.</p>
+          </div>
           {hasUnread && (
             <button 
               onClick={handleMarkAllAsRead}
-              className="flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition" 
+              className="flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition mt-1" 
               style={{ color: '#374151' }}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -167,7 +178,7 @@ const NotificationsPage: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-2 mb-5 px-1 overflow-x-auto">
+        <div className="flex items-center gap-2 mb-5 px-1 overflow-x-auto pb-1">
           {tabs.map(tab => (
             <button
               key={tab.key}
@@ -177,6 +188,7 @@ const NotificationsPage: React.FC = () => {
                 backgroundColor: activeTab === tab.key ? '#111111' : '#ffffff',
                 color: activeTab === tab.key ? '#ffffff' : '#374151',
                 border: activeTab === tab.key ? 'none' : '1px solid #e5e7eb',
+                boxShadow: activeTab === tab.key ? 'none' : '0 1px 4px rgba(0,0,0,0.04)',
               }}
             >
               {tab.label}
@@ -197,16 +209,16 @@ const NotificationsPage: React.FC = () => {
                 <div
                   key={n._id}
                   onClick={() => !n.isRead && handleMarkAsRead(n._id)}
-                  className="flex items-start gap-4 px-6 py-5 rounded-2xl cursor-pointer hover:shadow-md transition"
+                  className="flex items-start gap-4 px-6 py-5 rounded-3xl cursor-pointer hover:shadow-md transition"
                   style={{
-                    backgroundColor: !n.isRead ? '#f3f4f6' : '#ffffff',
-                    border: '1px solid #f3f4f6',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                    backgroundColor: !n.isRead ? '#f9fafb' : '#ffffff',
+                    boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
+                    border: !n.isRead ? '1px solid #e5e7eb' : '1px solid transparent',
                   }}
                 >
                   {/* Icon */}
                   <div
-                    className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
                     style={{ backgroundColor: categoryStyle.bg }}
                   >
                     {categoryStyle.icon}
@@ -236,8 +248,8 @@ const NotificationsPage: React.FC = () => {
           <div className="text-center mt-6">
             <button
               onClick={() => setPage(p => p + 1)}
-              className="px-6 py-2 rounded-full text-sm font-semibold transition"
-              style={{ backgroundColor: '#ffffff', color: '#374151', border: '1px solid #e5e7eb' }}
+              className="px-6 py-2 rounded-full text-sm font-semibold transition hover:bg-gray-100"
+              style={{ backgroundColor: '#ffffff', color: '#374151', border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
             >
               Load More
             </button>
