@@ -164,16 +164,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
               className="flex items-center justify-center overflow-hidden"
               style={{ height: '120px', background: '#111111' }}
             >
-              <img
-                src="/ChatGPT Image Apr 16, 2026, 03_06_38 PM.png"
-                alt="speedcopy logo"
-                style={{
-                  width: '120px',
-                  height: '80px',
-                  objectFit: 'contain',
-                  flexShrink: 0,
-                }}
-              />
+              <span style={{ color: '#ffffff', fontSize: '28px', fontWeight: '800', letterSpacing: '-0.5px' }}>
+                speedcopy
+              </span>
             </div>
 
             {/* Body */}
