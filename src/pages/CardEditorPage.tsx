@@ -23,6 +23,8 @@ const CardEditorPage: React.FC = () => {
     if (productImage) {
       setUploadedImage(decodeURIComponent(productImage));
       setImagePosition('background');
+      // Auto-select "match" template when product image is passed
+      setSelectedTemplate('match');
     }
   }, []); // eslint-disable-line
   const [cardText, setCardText] = useState({
@@ -35,6 +37,13 @@ const CardEditorPage: React.FC = () => {
   });
 
   const templates = [
+    {
+      id: 'match',
+      name: 'Match Selected Card',
+      bgColor: 'transparent',
+      textColor: '#ffffff',
+      preview: 'Use your selected product card as background'
+    },
     { 
       id: 'modern', 
       name: 'Modern', 
@@ -318,13 +327,26 @@ const CardEditorPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       {/* Mini Card Preview */}
                       <div
-                        className="w-16 h-10 rounded-lg flex items-center justify-center text-xs font-bold relative overflow-hidden"
-                        style={{ background: template.bgColor, color: template.textColor }}
+                        className="w-16 h-10 rounded-lg flex items-center justify-center text-xs font-bold relative overflow-hidden flex-shrink-0"
+                        style={{
+                          background: template.id === 'match' && uploadedImage
+                            ? 'transparent'
+                            : template.bgColor,
+                          color: template.textColor,
+                        }}
                       >
-                        <div className="absolute inset-0 flex flex-col justify-between p-1">
-                          <div className="text-[6px] font-bold">{cardText.name.split(' ')[0]}</div>
-                          <div className="text-[4px] opacity-70">{cardText.title.substring(0, 10)}</div>
-                        </div>
+                        {template.id === 'match' && uploadedImage ? (
+                          <>
+                            <img src={uploadedImage} alt="match" className="absolute inset-0 w-full h-full object-cover" />
+                            <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.3)' }} />
+                            <span className="relative z-10 text-white text-[5px] font-bold text-center px-0.5">Match Card</span>
+                          </>
+                        ) : (
+                          <div className="absolute inset-0 flex flex-col justify-between p-1">
+                            <div className="text-[6px] font-bold">{cardText.name.split(' ')[0]}</div>
+                            <div className="text-[4px] opacity-70">{cardText.title.substring(0, 10)}</div>
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-gray-900">{template.name}</p>
@@ -395,12 +417,31 @@ const CardEditorPage: React.FC = () => {
                   style={{
                     width: '500px',
                     height: '300px',
-                    background: currentTemplate.bgColor,
+                    background: selectedTemplate === 'match' && uploadedImage
+                      ? 'transparent'
+                      : currentTemplate.bgColor,
                     color: currentTemplate.textColor,
                   }}
                 >
-                  {/* Background image overlay */}
-                  {uploadedImage && imagePosition === 'background' && (
+                  {/* Match Selected Card — full product image as background */}
+                  {selectedTemplate === 'match' && uploadedImage && (
+                    <div
+                      className="absolute inset-0 z-0"
+                      style={{
+                        backgroundImage: `url(${uploadedImage})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        opacity: 1,
+                      }}
+                    />
+                  )}
+                  {/* Semi-transparent overlay for text readability on match template */}
+                  {selectedTemplate === 'match' && uploadedImage && (
+                    <div className="absolute inset-0 z-0" style={{ background: 'rgba(0,0,0,0.35)' }} />
+                  )}
+
+                  {/* Background image overlay (non-match templates) */}
+                  {uploadedImage && imagePosition === 'background' && selectedTemplate !== 'match' && (
                     <div
                       className="absolute inset-0 z-0"
                       style={{
