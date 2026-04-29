@@ -440,21 +440,24 @@ const PickupLocationPage: React.FC = () => {
               {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-2xl animate-pulse bg-gray-100" />)}
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            <div className="text-center py-10">
+              <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                 </svg>
               </div>
-              <p className="text-gray-500 font-semibold mb-2">No shops available yet</p>
-              <p className="text-sm text-gray-400 mb-4">
-                Shops are added by our vendor partners. Click "Near Me" to search by location or pincode.
+              <p className="text-gray-700 font-semibold mb-2">Stores pending approval</p>
+              <p className="text-sm text-gray-400 mb-1 max-w-xs mx-auto">
+                Vendor stores are registered but awaiting admin approval before they appear here.
+              </p>
+              <p className="text-xs text-gray-400 mb-5 max-w-xs mx-auto">
+                Please contact <span className="font-medium text-gray-600">support@speedcopy.in</span> to approve your vendor account.
               </p>
               <button
                 onClick={handleNearMeClick}
                 className="px-6 py-2 bg-black text-white rounded-full text-sm font-semibold hover:bg-gray-800 transition"
               >
-                Search for Shops
+                Search by Pincode
               </button>
             </div>
           ) : (
