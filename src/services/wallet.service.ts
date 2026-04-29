@@ -142,22 +142,15 @@ class WalletService {
    * 2. Get Wallet Overview - Detailed stats (total spent, refunds)
    */
   async getOverview(): Promise<{ success: boolean; data: WalletOverview }> {
-    try {
-      const response = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET_OVERVIEW);
-      return response.data;
-    } catch (error) {
-      if (!this.isRouteNotFoundError(error)) throw error;
-      
-      // Fallback - construct overview from balance
-      const balanceRes = await this.getBalance();
-      return this.wrapSuccess({
-        balance: balanceRes.data.balance,
-        totalSpent: 0,
-        totalRefunds: 0,
-        totalTopups: 0,
-        currency: 'INR'
-      });
-    }
+    // /api/wallet/overview doesn't exist, use /api/wallet
+    const balanceRes = await this.getBalance();
+    return this.wrapSuccess({
+      balance: balanceRes.data.balance,
+      totalSpent: 0,
+      totalRefunds: 0,
+      totalTopups: 0,
+      currency: 'INR'
+    });
   }
 
   /**
@@ -168,23 +161,8 @@ class WalletService {
     limit?: number; 
     type?: string 
   }): Promise<{ success: boolean; data: WalletLedger }> {
-    try {
-      const response = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.LEDGER, { params });
-      return response.data;
-    } catch (error) {
-      if (!this.isRouteNotFoundError(error)) throw error;
-      
-      // Fallback - return empty ledger
-      return this.wrapSuccess({
-        entries: [],
-        pagination: {
-          page: params?.page || 1,
-          limit: params?.limit || 10,
-          total: 0,
-          totalPages: 0
-        }
-      });
-    }
+    // /api/wallet/ledger doesn't exist, use getTransactionHistory instead
+    return this.getTransactionHistory(params);
   }
 
   /**
@@ -399,53 +377,41 @@ class WalletService {
     startDate?: string;
     endDate?: string;
   }): Promise<{ success: boolean; data: WalletLedger }> {
-    // Try /api/wallet/transactions first, fallback to /api/wallet/ledger, then /api/wallet
-    const endpoints = [
-      { url: API_CONFIG.ENDPOINTS.FINANCE.TRANSACTION_HISTORY, hasParams: true },
-      { url: API_CONFIG.ENDPOINTS.FINANCE.LEDGER, hasParams: true },
-      { url: API_CONFIG.ENDPOINTS.FINANCE.WALLET, hasParams: false },
-    ];
+    // /api/wallet/transactions and /api/wallet/ledger don't exist on backend
+    // Use only /api/wallet which returns balance + transactions together
+    try {
+      const response = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET);
+      console.log('📋 Transactions from /api/wallet:', response.data);
 
-    for (const ep of endpoints) {
-      try {
-        const response = await apiClient.get(ep.url, ep.hasParams ? { params } : undefined);
-        console.log(`📋 Transactions from ${ep.url}:`, response.data);
+      const raw = response.data;
+      const txData =
+        raw?.data?.data ||
+        raw?.data ||
+        raw || {};
 
-        const raw = response.data;
-        const txData =
-          raw?.data?.data ||
-          raw?.data ||
-          raw || {};
+      const entries: Transaction[] =
+        txData?.entries ||
+        txData?.transactions ||
+        txData?.data ||
+        txData?.ledger ||
+        (Array.isArray(txData) ? txData : []);
 
-        const entries: Transaction[] =
-          txData?.entries ||
-          txData?.transactions ||
-          txData?.data ||
-          txData?.ledger ||
-          (Array.isArray(txData) ? txData : []);
-
-        // If we got entries (even empty array from a valid response), return it
-        if (Array.isArray(entries)) {
-          return this.wrapSuccess({
-            entries,
-            pagination: txData?.pagination || {
-              page: params?.page || 1,
-              limit: params?.limit || 20,
-              total: entries.length,
-              totalPages: 1
-            }
-          });
+      return this.wrapSuccess({
+        entries,
+        pagination: txData?.pagination || {
+          page: params?.page || 1,
+          limit: params?.limit || 20,
+          total: entries.length,
+          totalPages: 1
         }
-      } catch (error: any) {
-        console.warn(`⚠️ Transactions API failed for ${ep.url}:`, error?.response?.status);
-        // Continue to next endpoint
-      }
+      });
+    } catch (error: any) {
+      console.warn('⚠️ Wallet transactions failed:', error?.response?.status);
+      return this.wrapSuccess({
+        entries: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
+      });
     }
-
-    return this.wrapSuccess({
-      entries: [],
-      pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
-    });
   }
 
   // Additional utility methods
