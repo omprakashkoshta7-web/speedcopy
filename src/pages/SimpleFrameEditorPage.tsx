@@ -288,7 +288,21 @@ const SimpleFrameEditorPage: React.FC = () => {
         return;
       }
 
-      const thumbnailUrl = productImages[activeImageIndex] || '';
+      // Generate composite screenshot (frame + user photo) for cart display
+      let designPreview = productImages[activeImageIndex] || '';
+      try {
+        const { default: html2canvas } = await import('html2canvas');
+        if (editorRef.current) {
+          const canvas = await html2canvas(editorRef.current, {
+            useCORS: true,
+            allowTaint: true,
+            scale: 1.5,
+          });
+          designPreview = canvas.toDataURL('image/jpeg', 0.8);
+        }
+      } catch {
+        // fallback to product image
+      }
 
       const payload = {
         productId: pid,
@@ -299,14 +313,14 @@ const SimpleFrameEditorPage: React.FC = () => {
         totalPrice: displayPrice * quantity,
         variantId: undefined as undefined,
         designId: `simple-${pid}-${Date.now()}`,
-        thumbnail: thumbnailUrl,
-        designPreview: thumbnailUrl,
+        thumbnail: designPreview,
+        designPreview: designPreview,
         designJson: '',
         designName: `${product.name || 'Design'} - Editor`,
         options: { source: 'simple-frame-editor' },
       };
 
-      console.log('🛒 Adding to cart with payload:', { ...payload, thumbnail: thumbnailUrl ? '[URL]' : 'empty' });
+      console.log('🛒 Adding to cart with composite design preview');
 
       await orderService.addToCart(payload);
       console.log('✅ Added to cart successfully');
