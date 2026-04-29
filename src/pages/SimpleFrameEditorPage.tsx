@@ -91,8 +91,17 @@ const SimpleFrameEditorPage: React.FC = () => {
     try {
       const { default: html2canvas } = await import('html2canvas');
       if (editorRef.current) {
-        const canvas = await html2canvas(editorRef.current, { useCORS: true, allowTaint: true, scale: 0.5 });
-        thumbnail = canvas.toDataURL('image/jpeg', 0.6);
+        const canvas = await html2canvas(editorRef.current, { useCORS: true, allowTaint: true, scale: 0.4 });
+        const maxW = 400;
+        const ratio = Math.min(maxW / canvas.width, 1);
+        const resized = document.createElement('canvas');
+        resized.width = Math.round(canvas.width * ratio);
+        resized.height = Math.round(canvas.height * ratio);
+        const ctx = resized.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(canvas, 0, 0, resized.width, resized.height);
+          thumbnail = resized.toDataURL('image/jpeg', 0.5);
+        }
       }
     } catch { /* use product image as fallback */ }
 
@@ -296,9 +305,19 @@ const SimpleFrameEditorPage: React.FC = () => {
           const canvas = await html2canvas(editorRef.current, {
             useCORS: true,
             allowTaint: true,
-            scale: 1.5,
+            scale: 0.4,   // low scale to keep size small
           });
-          designPreview = canvas.toDataURL('image/jpeg', 0.8);
+          // Resize to max 400px wide
+          const maxW = 400;
+          const ratio = Math.min(maxW / canvas.width, 1);
+          const resized = document.createElement('canvas');
+          resized.width = Math.round(canvas.width * ratio);
+          resized.height = Math.round(canvas.height * ratio);
+          const ctx = resized.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(canvas, 0, 0, resized.width, resized.height);
+            designPreview = resized.toDataURL('image/jpeg', 0.5); // heavy compression
+          }
         }
       } catch {
         // fallback to product image
