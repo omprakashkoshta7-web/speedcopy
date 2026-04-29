@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import walletService from '../services/wallet.service';
+import paymentService from '../services/payment.service';
 import productService from '../services/product.service';
 import orderService from '../services/order.service';
 
@@ -316,100 +317,39 @@ const PrintCheckoutPage: React.FC = () => {
   const handleRazorpayPayment = async (orderData: any, totalAmount: number) => {
     try {
       console.log('🎯 Starting Razorpay payment for amount:', totalAmount);
-      
-      // Use the Razorpay key from environment
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_6vdMK3ln1NsDMj';
-      
-      console.log('🔑 Using Razorpay key:', razorpayKey);
-      console.log('💰 Amount in paise:', Math.round(totalAmount * 100));
-      
-      // Ensure Razorpay SDK is loaded
-      if (!window.Razorpay) {
-        console.log('⏳ Loading Razorpay SDK...');
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-          script.async = true;
-          script.onload = () => {
-            console.log('✅ Razorpay SDK loaded');
-            resolve();
-          };
-          script.onerror = () => {
-            console.error('❌ Failed to load Razorpay SDK');
-            reject(new Error('Failed to load Razorpay SDK'));
-          };
-          document.body.appendChild(script);
-        });
-      }
-      
-      if (!window.Razorpay) {
-        throw new Error('Razorpay SDK not loaded. Please refresh the page and try again.');
-      }
-      
-      console.log('✅ Razorpay SDK loaded, opening checkout...');
-      
-      // Open Razorpay checkout directly
-      const checkoutResult = await new Promise<any>((resolve, reject) => {
-        const options = {
-          key: razorpayKey,
-          amount: Math.round(totalAmount * 100), // Amount in paise
-          currency: 'INR',
-          name: 'SpeedCopy',
-          description: `Print Job - ${printConfig?.totalPages || 0} pages`,
-          image: '/logo.png',
-          prefill: {
-            name: orderData.shippingAddress?.fullName || '',
-            email: '',
-            contact: orderData.shippingAddress?.phone || '',
-          },
-          theme: {
-            color: '#111111',
-          },
-          handler: function (response: any) {
-            console.log('✅ Payment successful:', response);
-            resolve({
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpayOrderId: response.razorpay_order_id,
-              razorpaySignature: response.razorpay_signature,
-            });
-          },
-          modal: {
-            ondismiss: function () {
-              console.log('⚠️ Payment cancelled by user');
-              reject(new Error('Payment cancelled by user'));
-            },
-          },
-        };
-        
-        if (window.Razorpay) {
-          const rzp = new window.Razorpay(options);
-          
-          rzp.on('payment.failed', function (response: any) {
-            console.error('❌ Payment failed:', response.error);
-            reject(new Error(response.error.description || 'Payment failed'));
-          });
-          
-          rzp.open();
-          console.log('🚀 Razorpay modal opened');
-        } else {
-          reject(new Error('Razorpay SDK not loaded'));
-        }
+
+      // 1) Initiate via wallet service (same as AddFundsPage)
+      const initiateRes = await walletService.initiateRazorpay(totalAmount, `print_${Date.now()}`);
+      const paymentData = initiateRes.data;
+
+      console.log('🔑 Using Razorpay key:', paymentData.keyId?.substring(0, 8) + '...');
+      console.log('📦 Razorpay Order ID:', paymentData.razorpayOrderId);
+      console.log('💰 Amount in paise:', paymentData.amount);
+
+      // 2) Open Razorpay checkout via paymentService
+      const checkoutResult = await paymentService.openCheckout({
+        keyId: paymentData.keyId,
+        amount: paymentData.amount,
+        currency: paymentData.currency || 'INR',
+        orderId: paymentData.razorpayOrderId,
+        name: 'SpeedCopy',
+        description: `Print Job - ${printConfig?.totalPages || 0} pages`,
       });
-      
+
       console.log('✅ Payment completed, creating order...');
 
-      // Create order with payment details
+      // 3) Create order with payment details
       const finalOrderData = {
         ...orderData,
         razorpayPaymentId: checkoutResult.razorpayPaymentId,
-        razorpayOrderId: checkoutResult.razorpayOrderId,
+        razorpayOrderId: checkoutResult.razorpayOrderId || paymentData.razorpayOrderId,
         razorpaySignature: checkoutResult.razorpaySignature,
         paymentStatus: 'completed',
       };
 
       const response = await orderService.createOrder(finalOrderData);
       const createdOrderId = response.data?._id;
-      
+
       if (createdOrderId) {
         console.log('✅ Order created successfully:', createdOrderId);
         navigate(`/payment-success?orderId=${createdOrderId}&paymentId=${checkoutResult.razorpayPaymentId}`);

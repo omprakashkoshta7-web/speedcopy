@@ -4,6 +4,7 @@ import { ArrowLeft, ShoppingCart, CreditCard, Wallet, Check } from 'lucide-react
 import Navbar from '../components/Navbar';
 import AddressModal from '../components/AddressModal';
 import paymentService from '../services/payment.service';
+import walletService from '../services/wallet.service';
 import orderService from '../services/order.service';
 import userService from '../services/user.service';
 import { useAuth } from '../context/AuthContext';
@@ -186,16 +187,12 @@ const BusinessCardCheckoutPage: React.FC = () => {
       if (paymentMethod === 'razorpay') {
         console.log('🚀 Starting Razorpay payment flow for business cards');
 
-        // Create payment order
-        const paymentData = await paymentService.createPayment({
-          orderId: `card_${Date.now()}`,
-          amount: total,
-          currency: 'INR',
-        });
+        // 1) Initiate via wallet service (same as AddFundsPage)
+        const initiateRes = await walletService.initiateRazorpay(total, `card_${Date.now()}`);
+        const paymentData = initiateRes.data;
 
         console.log('💳 Payment data received:', paymentData);
 
-        // Extract payment details
         const keyId = paymentData?.keyId;
         const razorpayOrderId = paymentData?.razorpayOrderId;
         const amountInPaise = paymentData?.amount || Math.round(total * 100);
@@ -205,7 +202,7 @@ const BusinessCardCheckoutPage: React.FC = () => {
           throw new Error('Payment initialization failed. Missing Razorpay details.');
         }
 
-        // Open Razorpay checkout
+        // 2) Open Razorpay checkout
         console.log('🎯 Opening Razorpay checkout...');
         const checkoutResult = await paymentService.openCheckout({
           keyId,
