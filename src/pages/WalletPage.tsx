@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import walletService, { LedgerEntry } from '../services/wallet.service';
+import walletService from '../services/wallet.service';
+import type { LedgerEntry } from '../services/wallet.service';
 import { useAuth } from '../context/AuthContext';
 
 interface Transaction extends LedgerEntry {

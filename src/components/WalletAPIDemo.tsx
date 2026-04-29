@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import walletService from '../services/wallet.service';
 import type { 
   WalletBalance, 
-  WalletOverview, 
   WalletLedger, 
   TopupConfig, 
   TopupPreview 
 } from '../services/wallet.service';
+
+// WalletOverview is returned as 'any' from getOverview()
+type WalletOverview = any;
 
 /**
  * Wallet API Demo Component
@@ -168,7 +170,7 @@ const WalletAPIDemo: React.FC = () => {
       const response = await walletService.getTransactionHistory({ 
         page: 1, 
         limit: 5,
-        type: 'credit'
+        category: 'wallet_topup'
       });
       setApiResult('transactionHistory', response);
       console.log('✅ Transaction History API:', response);
