@@ -570,33 +570,54 @@ class ProductService {
 
   /**
    * Get nearby vendor stores for pickup locations
+   * API: GET /api/vendor/stores/nearby
+   * Response: { success, data: { stores: [...], totalFound, searchLocation, searchRadius } }
    */
   async getNearbyVendorStores(params?: {
     lat?: number;
     lng?: number;
-    radius?: number;
-    limit?: number;
+    radius?: number;   // km, default 10
+    limit?: number;    // default 20
     pincode?: string;
   }): Promise<any> {
     try {
-      console.log('🚀 [Product Service] Fetching nearby vendor stores with params:', params);
-      
-      // Direct call to vendor service since gateway doesn't have VENDOR_SERVICE_URL configured
+      console.log('🚀 [Product Service] Fetching nearby vendor stores:', params);
       const vendorServiceUrl = 'https://vendor-202671058278.asia-south1.run.app';
       const response = await axios.get(
         `${vendorServiceUrl}/api/vendor/stores/nearby`,
         { params }
       );
-      
-      console.log('✅ [Product Service] Nearby vendor stores fetched:', response.data);
+      console.log('✅ [Product Service] Vendor stores response:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('❌ [Product Service] Failed to fetch nearby vendor stores:', error);
-      return {
-        success: false,
-        data: { stores: [] },
-        message: error.message || 'Failed to fetch nearby vendor stores'
-      };
+      console.error('❌ [Product Service] Vendor stores failed:', error);
+      return { success: false, data: { stores: [] } };
+    }
+  }
+
+  /**
+   * Get printing pickup locations (customer-facing)
+   * API: GET /api/products/printing/pickup-locations
+   * Response: { success, data: [ { _id, name, address, location, workingHours, supportedFlows, distance } ] }
+   */
+  async getPrintingPickupLocations(params?: {
+    lat?: number;
+    lng?: number;
+    radius?: number;
+    pincode?: string;
+    limit?: number;
+  }): Promise<any> {
+    try {
+      console.log('🚀 [Product Service] Fetching printing pickup locations:', params);
+      const response = await apiClient.get(
+        API_CONFIG.ENDPOINTS.PRODUCTS.PRINTING.PICKUP_LOCATIONS,
+        { params }
+      );
+      console.log('✅ [Product Service] Printing pickup locations:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ [Product Service] Printing pickup locations failed:', error);
+      return { success: false, data: [] };
     }
   }
 

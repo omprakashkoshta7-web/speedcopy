@@ -48,7 +48,7 @@ const mapVendorStoreToLocation = (store: any): PickupLocation => {
     : null;
 
   // Supported flows for amenities
-  const supportedFlows = Array.isArray(store?.supportedFlows)
+  const supportedFlows: string[] = Array.isArray(store?.supportedFlows)
     ? store.supportedFlows
     : Array.isArray(store?.supported_flows)
     ? store.supported_flows
@@ -57,24 +57,41 @@ const mapVendorStoreToLocation = (store: any): PickupLocation => {
   const amenities: string[] = [];
   if (store?.hasWifi || store?.wifi) amenities.push('wifi');
   if (store?.hasParking || store?.parking) amenities.push('parking');
-  if (supportedFlows.includes('printing') || supportedFlows.includes('print')) amenities.push('print');
-  if (amenities.length === 0) amenities.push('print'); // default
+  if (
+    supportedFlows.includes('printing') ||
+    supportedFlows.includes('print') ||
+    supportedFlows.length === 0  // default: assume printing supported
+  ) amenities.push('print');
 
-  // Status
+  // Status — check capacity load too
   const isActive = store?.isActive !== false && store?.isAvailable !== false && store?.status !== 'inactive';
   const is247 = store?.is24x7 || store?.open247 || false;
+  const capacity = store?.capacity;
+  const isFull = capacity && typeof capacity.currentLoad === 'number' && typeof capacity.dailyLimit === 'number'
+    ? capacity.currentLoad >= capacity.dailyLimit
+    : false;
 
   // Address
   const addr = store?.address || store?.storeAddress || {};
   const formattedAddress = formatStoreAddress(addr) || store?.addressString || 'Address not available';
 
-  // Rating & reviews from API or defaults
+  // Rating & reviews
   const rating = typeof store?.rating === 'number' ? store.rating : 4.8;
   const reviews = typeof store?.reviewCount === 'number'
     ? store.reviewCount
     : typeof store?.reviews === 'number'
     ? store.reviews
     : 0;
+
+  // Working hours label
+  const workingHours = store?.workingHours || '';
+
+  const status = !isActive || isFull ? 'closed' : is247 ? 'open247' : 'open';
+  const statusLabel = !isActive ? 'CLOSED'
+    : isFull ? 'FULL TODAY'
+    : is247 ? 'OPEN 24/7'
+    : workingHours ? workingHours
+    : 'OPEN NOW';
 
   return {
     id: String(store?._id || store?.id || store?.storeId || Date.now()),
@@ -83,8 +100,8 @@ const mapVendorStoreToLocation = (store: any): PickupLocation => {
     distance: distanceKm !== null ? `${distanceKm.toFixed(1)} km` : 'Nearby',
     rating,
     reviews,
-    status: !isActive ? 'closed' : is247 ? 'open247' : 'open',
-    statusLabel: !isActive ? 'CLOSED' : is247 ? 'OPEN 24/7' : 'OPEN NOW',
+    status,
+    statusLabel,
     amenities,
     icon: 'store',
   };
@@ -188,183 +205,89 @@ const PickupLocationPage: React.FC = () => {
     limit?: number;
     pincode?: string;
   }) => {
-    const response = await productService.getNearbyVendorStores(params);
-    console.log('📦 Raw vendor API response:', JSON.stringify(response).substring(0, 500));
-    const rawStores = getStoresFromResponse(response);
-    console.log('📦 Parsed stores count:', rawStores.length, rawStores);
-    return rawStores.map(mapVendorStoreToLocation);
+    // Try both APIs in parallel and merge results
+    const [vendorRes, printingRes] = await Promise.allSettled([
+      productService.getNearbyVendorStores(params),
+      productService.getPrintingPickupLocations(params),
+    ]);
+
+    const vendorStores: any[] = [];
+    const printingStores: any[] = [];
+
+    // Parse vendor stores: { success, data: { stores: [...] } }
+    if (vendorRes.status === 'fulfilled') {
+      const res = vendorRes.value;
+      const raw = res?.data?.stores || res?.stores || [];
+      if (Array.isArray(raw)) vendorStores.push(...raw);
+    }
+
+    // Parse printing pickup locations: { success, data: [...] }
+    if (printingRes.status === 'fulfilled') {
+      const res = printingRes.value;
+      const raw = res?.data || [];
+      if (Array.isArray(raw)) printingStores.push(...raw);
+    }
+
+    console.log('📦 Vendor stores:', vendorStores.length, '| Printing stores:', printingStores.length);
+
+    // Merge — deduplicate by _id
+    const seen = new Set<string>();
+    const merged: any[] = [];
+    for (const s of [...vendorStores, ...printingStores]) {
+      const id = String(s._id || s.id || '');
+      if (id && seen.has(id)) continue;
+      if (id) seen.add(id);
+      merged.push(s);
+    }
+
+    return merged.map(mapVendorStoreToLocation);
   };
 
   useEffect(() => {
     fetchLocations();
   }, []);
 
+  // Default stores — shown when API returns no results
+  const DEFAULT_STORES: PickupLocation[] = [
+    { id: 'default-1', name: 'SpeedCopy Hub - Jabalpur', address: 'Shop No. 15, Gole Market, Near Railway Station, Jabalpur, Madhya Pradesh, 482001', distance: '2.5 km', rating: 4.8, reviews: 124, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
+    { id: 'default-2', name: 'SpeedCopy Express - Delhi', address: 'A-123, Connaught Place, Central Delhi, New Delhi, Delhi, 110001', distance: '5.2 km', rating: 4.9, reviews: 256, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
+    { id: 'default-3', name: 'SpeedCopy Center - Mumbai', address: 'Shop 45, Linking Road, Bandra West, Mumbai, Maharashtra, 400050', distance: '3.8 km', rating: 4.7, reviews: 189, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
+    { id: 'default-4', name: 'SpeedCopy Plus - Bangalore', address: '12th Main, Koramangala 4th Block, Bangalore, Karnataka, 560034', distance: '4.1 km', rating: 4.8, reviews: 203, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
+    { id: 'default-5', name: 'SpeedCopy Station - Chennai', address: 'No. 78, T. Nagar Main Road, Chennai, Tamil Nadu, 600017', distance: '6.3 km', rating: 4.6, reviews: 167, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
+    { id: 'default-6', name: 'SpeedCopy Point - Pune', address: 'FC Road, Shivajinagar, Pune, Maharashtra, 411005', distance: '7.1 km', rating: 4.7, reviews: 98, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'print'], icon: 'store' },
+    { id: 'default-7', name: 'SpeedCopy Zone - Hyderabad', address: 'Banjara Hills Road No. 12, Hyderabad, Telangana, 500034', distance: '8.4 km', rating: 4.5, reviews: 143, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
+  ];
+
   const fetchLocations = async () => {
     try {
       setLoading(true);
-      
       console.log('🔍 Fetching pickup locations...');
-      
-      // Default hardcoded stores as fallback
-      const defaultStores: PickupLocation[] = [
-        {
-          id: 'default-1',
-          name: 'SpeedCopy Hub - Jabalpur',
-          address: 'Shop No. 15, Gole Market, Near Railway Station, Jabalpur, Madhya Pradesh, 482001',
-          distance: '2.5 km',
-          rating: 4.8,
-          reviews: 124,
-          status: 'open',
-          statusLabel: 'OPEN NOW',
-          amenities: ['wifi', 'parking', 'print'],
-          icon: 'store',
-        },
-        {
-          id: 'default-2',
-          name: 'SpeedCopy Express - Delhi',
-          address: 'A-123, Connaught Place, Central Delhi, New Delhi, Delhi, 110001',
-          distance: '5.2 km',
-          rating: 4.9,
-          reviews: 256,
-          status: 'open',
-          statusLabel: 'OPEN NOW',
-          amenities: ['wifi', 'parking', 'print'],
-          icon: 'store',
-        },
-        {
-          id: 'default-3',
-          name: 'SpeedCopy Center - Mumbai',
-          address: 'Shop 45, Linking Road, Bandra West, Mumbai, Maharashtra, 400050',
-          distance: '3.8 km',
-          rating: 4.7,
-          reviews: 189,
-          status: 'open',
-          statusLabel: 'OPEN NOW',
-          amenities: ['wifi', 'parking', 'print'],
-          icon: 'store',
-        },
-        {
-          id: 'default-4',
-          name: 'SpeedCopy Plus - Bangalore',
-          address: '12th Main, Koramangala 4th Block, Bangalore, Karnataka, 560034',
-          distance: '4.1 km',
-          rating: 4.8,
-          reviews: 203,
-          status: 'open',
-          statusLabel: 'OPEN NOW',
-          amenities: ['wifi', 'parking', 'print'],
-          icon: 'store',
-        },
-        {
-          id: 'default-5',
-          name: 'SpeedCopy Station - Chennai',
-          address: 'No. 78, T. Nagar Main Road, Chennai, Tamil Nadu, 600017',
-          distance: '6.3 km',
-          rating: 4.6,
-          reviews: 167,
-          status: 'open',
-          statusLabel: 'OPEN NOW',
-          amenities: ['wifi', 'parking', 'print'],
-          icon: 'store',
-        },
-      ];
-      
-      // Use default India center coordinates to fetch all stores
-      // This ensures API works even without user location
-      const defaultCoords = { lat: 20.5937, lng: 78.9629 }; // India center
-      
-      // Try to get user location for better sorting
-      let geoParams = defaultCoords;
+
+      // Try user GPS, fallback to India center
+      let geoParams = { lat: 20.5937, lng: 78.9629 };
       try {
-        const position = await getCurrentPosition();
-        geoParams = { lat: position.lat, lng: position.lng };
-        console.log('✅ User location detected:', geoParams);
+        const pos = await getCurrentPosition();
+        geoParams = { lat: pos.lat, lng: pos.lng };
+        console.log('✅ User location:', geoParams);
       } catch {
-        console.log('⚠️ Location access denied, using default coordinates');
+        console.log('⚠️ Using default India coordinates');
       }
 
-      // Fetch stores with large radius to get all available stores
-      // Fetch stores with large radius to get all available stores
-      const nearbyStores = await loadStores({
-        ...geoParams,
-        radius: 5000, // 5000km radius to get all stores in India
-        limit: 50,
-      });
+      // Call both APIs (vendor + printing pickup)
+      const apiStores = await loadStores({ ...geoParams, radius: 5000, limit: 50 });
+      console.log('✅ API stores:', apiStores.length);
 
-      console.log('✅ Stores loaded from API:', nearbyStores.length, nearbyStores);
-      
-      // If API returns stores, use them; otherwise use default stores
-      if (nearbyStores.length > 0) {
-        setLocations(nearbyStores);
+      if (apiStores.length > 0) {
+        // Merge API stores with defaults (API first, then defaults not already present)
+        const apiIds = new Set(apiStores.map(s => s.id));
+        const merged = [...apiStores, ...DEFAULT_STORES.filter(d => !apiIds.has(d.id))];
+        setLocations(merged);
       } else {
-        console.log('⚠️ No stores from API, using default stores');
-        setLocations(defaultStores);
-      }    } catch (error) {
-      console.error('❌ Failed to fetch locations:', error);
-      // On error, show default stores instead of empty list
-      const defaultStores: PickupLocation[] = [
-        {
-          id: 'default-1',
-          name: 'SpeedCopy Hub - Jabalpur',
-          address: 'Shop No. 15, Gole Market, Near Railway Station, Jabalpur, Madhya Pradesh, 482001',
-          distance: '2.5 km',
-          rating: 4.8,
-          reviews: 124,
-          status: 'open',
-          statusLabel: 'OPEN NOW',
-          amenities: ['wifi', 'parking', 'print'],
-          icon: 'store',
-        },
-        {
-          id: 'default-2',
-          name: 'SpeedCopy Express - Delhi',
-          address: 'A-123, Connaught Place, Central Delhi, New Delhi, Delhi, 110001',
-          distance: '5.2 km',
-          rating: 4.9,
-          reviews: 256,
-          status: 'open',
-          statusLabel: 'OPEN NOW',
-          amenities: ['wifi', 'parking', 'print'],
-          icon: 'store',
-        },
-        {
-          id: 'default-3',
-          name: 'SpeedCopy Center - Mumbai',
-          address: 'Shop 45, Linking Road, Bandra West, Mumbai, Maharashtra, 400050',
-          distance: '3.8 km',
-          rating: 4.7,
-          reviews: 189,
-          status: 'open',
-          statusLabel: 'OPEN NOW',
-          amenities: ['wifi', 'parking', 'print'],
-          icon: 'store',
-        },
-        {
-          id: 'default-4',
-          name: 'SpeedCopy Plus - Bangalore',
-          address: '12th Main, Koramangala 4th Block, Bangalore, Karnataka, 560034',
-          distance: '4.1 km',
-          rating: 4.8,
-          reviews: 203,
-          status: 'open',
-          statusLabel: 'OPEN NOW',
-          amenities: ['wifi', 'parking', 'print'],
-          icon: 'store',
-        },
-        {
-          id: 'default-5',
-          name: 'SpeedCopy Station - Chennai',
-          address: 'No. 78, T. Nagar Main Road, Chennai, Tamil Nadu, 600017',
-          distance: '6.3 km',
-          rating: 4.6,
-          reviews: 167,
-          status: 'open',
-          statusLabel: 'OPEN NOW',
-          amenities: ['wifi', 'parking', 'print'],
-          icon: 'store',
-        },
-      ];
-      setLocations(defaultStores);
+        setLocations(DEFAULT_STORES);
+      }
+    } catch (error) {
+      console.error('❌ fetchLocations error:', error);
+      setLocations(DEFAULT_STORES);
     } finally {
       setLoading(false);
     }
@@ -398,8 +321,7 @@ const PickupLocationPage: React.FC = () => {
         setZipInput('');
       } else {
         setZipError('No shops found for this zip code. Try a different one.');
-      }
-    } catch (error) {
+      }    } catch (error) {
       console.error('Pincode search error:', error);
       setZipError('Failed to search. Please try again.');
     } finally {
