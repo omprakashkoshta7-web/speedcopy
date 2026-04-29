@@ -160,33 +160,51 @@ const PrintTypeModal: React.FC<PrintTypeModalProps> = ({ onClose }) => {
       {step === 2 && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-          style={{ backgroundColor: '#f0f0f0' }}
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
           onClick={onClose}
         >
-          <div className="w-full" style={{ maxWidth: '560px' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setStep(1)} className="flex items-center gap-2 text-gray-800 text-sm font-semibold mb-4 hover:opacity-70 transition">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back
-            </button>
+          <div
+            className="rounded-2xl sm:rounded-3xl overflow-hidden w-full"
+            style={{ maxWidth: '560px', backgroundColor: '#eaecf0', padding: '20px', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={() => setStep(1)} className="flex items-center gap-2 text-gray-700 text-sm font-semibold hover:opacity-70 transition">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+              </button>
+              <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition">
+                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="text-center mb-5">
+              <h2 className="font-bold text-gray-900 text-lg sm:text-xl mb-1">Select Print Type</h2>
+              <p className="text-xs sm:text-sm" style={{ color: '#9ca3af' }}>Choose your document binding style</p>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               {bindingTypes.map((pt, idx) => (
                 <button
                   key={pt.label}
-                  className="flex flex-col items-center justify-center py-8 sm:py-10 px-4 sm:px-6 rounded-2xl sm:rounded-3xl bg-white hover:bg-gray-50 transition text-center"
-                  style={{ border: '1.5px solid #e5e7eb', minHeight: '180px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+                  className="flex flex-col items-center justify-center py-7 sm:py-9 px-4 rounded-2xl bg-white hover:bg-gray-50 transition text-center"
+                  style={{ border: '1.5px solid #e5e7eb', minHeight: '160px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                   onClick={() => {
                     const types = ['standard', 'soft-binding', 'spiral-binding', 'thesis-binding'];
                     onClose();
                     navigate(`/print-config?type=${types[idx]}`);
                   }}
                 >
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-4 sm:mb-5" style={{ backgroundColor: '#f3f4f6' }}>
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mb-3 sm:mb-4" style={{ backgroundColor: '#f3f4f6' }}>
                     {pt.icon}
                   </div>
-                  <p className="font-bold text-gray-900 mb-1.5 whitespace-pre-line text-sm sm:text-base">{pt.label}</p>
-                  <p className="text-xs sm:text-sm" style={{ color: '#9ca3af' }}>{pt.desc}</p>
+                  <p className="font-bold text-gray-900 mb-1 whitespace-pre-line text-sm sm:text-base">{pt.label}</p>
+                  <p className="text-xs" style={{ color: '#9ca3af' }}>{pt.desc}</p>
                 </button>
               ))}
             </div>
