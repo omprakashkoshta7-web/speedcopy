@@ -40,30 +40,67 @@ const formatStoreAddress = (address: any) => {
 };
 
 const mapVendorStoreToLocation = (store: any): PickupLocation => {
-  const distanceKm = typeof store?.distance === 'number' ? store.distance / 1000 : null;
-  const supportedFlows = Array.isArray(store?.supportedFlows) ? store.supportedFlows : [];
-  const amenities = ['wifi', 'parking'];
+  // Distance: API returns meters, convert to km
+  const distanceKm = typeof store?.distance === 'number'
+    ? store.distance / 1000
+    : typeof store?.distanceKm === 'number'
+    ? store.distanceKm
+    : null;
 
-  if (supportedFlows.includes('printing')) {
-    amenities.push('print');
-  }
+  // Supported flows for amenities
+  const supportedFlows = Array.isArray(store?.supportedFlows)
+    ? store.supportedFlows
+    : Array.isArray(store?.supported_flows)
+    ? store.supported_flows
+    : [];
+
+  const amenities: string[] = [];
+  if (store?.hasWifi || store?.wifi) amenities.push('wifi');
+  if (store?.hasParking || store?.parking) amenities.push('parking');
+  if (supportedFlows.includes('printing') || supportedFlows.includes('print')) amenities.push('print');
+  if (amenities.length === 0) amenities.push('print'); // default
+
+  // Status
+  const isActive = store?.isActive !== false && store?.isAvailable !== false && store?.status !== 'inactive';
+  const is247 = store?.is24x7 || store?.open247 || false;
+
+  // Address
+  const addr = store?.address || store?.storeAddress || {};
+  const formattedAddress = formatStoreAddress(addr) || store?.addressString || 'Address not available';
+
+  // Rating & reviews from API or defaults
+  const rating = typeof store?.rating === 'number' ? store.rating : 4.8;
+  const reviews = typeof store?.reviewCount === 'number'
+    ? store.reviewCount
+    : typeof store?.reviews === 'number'
+    ? store.reviews
+    : 0;
 
   return {
-    id: String(store?._id || store?.id || Date.now()),
-    name: store?.name || 'SpeedCopy Hub',
-    address: formatStoreAddress(store?.address),
-    distance: distanceKm !== null ? `${distanceKm.toFixed(1)} km` : 'Available',
-    rating: 4.8,
-    reviews: 0,
-    status: store?.isActive === false || store?.isAvailable === false ? 'closed' : 'open',
-    statusLabel: store?.isActive === false || store?.isAvailable === false ? 'CLOSED' : 'OPEN NOW',
+    id: String(store?._id || store?.id || store?.storeId || Date.now()),
+    name: store?.name || store?.storeName || 'SpeedCopy Hub',
+    address: formattedAddress,
+    distance: distanceKm !== null ? `${distanceKm.toFixed(1)} km` : 'Nearby',
+    rating,
+    reviews,
+    status: !isActive ? 'closed' : is247 ? 'open247' : 'open',
+    statusLabel: !isActive ? 'CLOSED' : is247 ? 'OPEN 24/7' : 'OPEN NOW',
     amenities,
     icon: 'store',
   };
 };
 
-const getStoresFromResponse = (response: any) => {
-  const stores = response?.data?.stores || response?.stores || [];
+const getStoresFromResponse = (response: any): any[] => {
+  // Handle all possible API response structures
+  const stores =
+    response?.data?.stores ||
+    response?.data?.data?.stores ||
+    response?.data?.vendors ||
+    response?.data?.data ||
+    response?.stores ||
+    response?.vendors ||
+    response?.data ||
+    [];
   return Array.isArray(stores) ? stores : [];
 };
 
@@ -152,7 +189,10 @@ const PickupLocationPage: React.FC = () => {
     pincode?: string;
   }) => {
     const response = await productService.getNearbyVendorStores(params);
-    return getStoresFromResponse(response).map(mapVendorStoreToLocation);
+    console.log('📦 Raw vendor API response:', JSON.stringify(response).substring(0, 500));
+    const rawStores = getStoresFromResponse(response);
+    console.log('📦 Parsed stores count:', rawStores.length, rawStores);
+    return rawStores.map(mapVendorStoreToLocation);
   };
 
   useEffect(() => {
@@ -259,8 +299,7 @@ const PickupLocationPage: React.FC = () => {
       } else {
         console.log('⚠️ No stores from API, using default stores');
         setLocations(defaultStores);
-      }
-    } catch (error) {
+      }    } catch (error) {
       console.error('❌ Failed to fetch locations:', error);
       // On error, show default stores instead of empty list
       const defaultStores: PickupLocation[] = [
