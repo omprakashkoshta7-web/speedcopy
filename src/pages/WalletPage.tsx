@@ -18,25 +18,6 @@ const WalletPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchWalletData();
-    } else {
-      setLoading(false);
-    }
-  }, [isAuthenticated, location, fetchWalletData]);
-
-  // Also refetch when tab becomes visible again (e.g., after payment)
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && isAuthenticated) {
-        fetchWalletData();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [isAuthenticated, fetchWalletData]);
-
   const fetchWalletData = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -75,6 +56,25 @@ const WalletPage: React.FC = () => {
       setLoading(false);
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchWalletData();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthenticated, location, fetchWalletData]);
+
+  // Also refetch when tab becomes visible again (e.g., after payment)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isAuthenticated) {
+        fetchWalletData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [isAuthenticated, fetchWalletData]);
 
   const handleLoginAgain = () => {
     // Clear session
