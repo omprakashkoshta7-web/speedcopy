@@ -137,39 +137,70 @@ const AddFundsPage: React.FC = () => {
       console.log('✅ Checkout completed:', checkoutResult);
 
       // 3) Verify payment with backend to credit wallet
-      console.log('🔐 Verifying payment with backend...');
-      try {
-        const verifyResponse = await walletService.verifyRazorpay(
-          checkoutResult.razorpayOrderId || razorpayOrderId || '',
-          checkoutResult.razorpayPaymentId || '',
-          checkoutResult.razorpaySignature || '',
-          amountInPaise
-        );
-        console.log('✅ Payment verified:', verifyResponse);
+      // Mock mode: razorpaySignature is 'mock_signature_verified' — skip verify, use add-funds instead
+      const isMockPayment =
+        checkoutResult.razorpaySignature === 'mock_signature_verified' ||
+        checkoutResult.razorpayPaymentId?.startsWith('pay_mock_') ||
+        mock;
 
-        // Backend returns: { success, data: { wallet, entry } }
-        const verifiedBalance =
-          verifyResponse?.data?.entry?.balanceAfter ??
-          verifyResponse?.data?.wallet?.balance ??
-          null;
-
-        if (verifiedBalance !== null && Number(verifiedBalance) > 0) {
-          setNewBalance(Number(verifiedBalance));
-        } else {
-          // Fallback: wait briefly then fetch fresh balance
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          const balRes = await walletService.getBalance();
-          setNewBalance(balRes.data.balance || currentBalance + total);
-        }
-      } catch (verifyErr) {
-        console.warn('⚠️ Verify API failed:', verifyErr);
-        // Wait and fetch fresh balance
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      if (isMockPayment) {
+        console.log('🔄 Mock payment detected — using add-funds to credit wallet');
         try {
-          const balRes = await walletService.getBalance();
-          setNewBalance(balRes.data.balance || currentBalance + total);
+          const addRes = await walletService.addFunds(total, 'upi');
+          const updatedBalance =
+            (addRes as any)?.data?.wallet?.balance ??
+            (addRes as any)?.wallet?.balance ??
+            null;
+          if (updatedBalance !== null) {
+            setNewBalance(Number(updatedBalance));
+          } else {
+            await new Promise(r => setTimeout(r, 800));
+            const balRes = await walletService.getBalance();
+            setNewBalance(balRes.data.balance || currentBalance + total);
+          }
         } catch {
           setNewBalance(currentBalance + total);
+        }
+      } else {
+        // Real payment — verify with backend
+        console.log('🔐 Verifying real payment with backend...');
+        const finalOrderId = checkoutResult.razorpayOrderId || razorpayOrderId || '';
+        const finalPaymentId = checkoutResult.razorpayPaymentId || '';
+        const finalSignature = checkoutResult.razorpaySignature || '';
+
+        console.log('🔐 Verify payload:', { finalOrderId, finalPaymentId, finalSignature: finalSignature.substring(0, 10) + '...' });
+
+        try {
+          const verifyResponse = await walletService.verifyRazorpay(
+            finalOrderId,
+            finalPaymentId,
+            finalSignature,
+            amountInPaise
+          );
+          console.log('✅ Payment verified:', verifyResponse);
+
+          // Backend returns: { success, data: { wallet, entry } }
+          const verifiedBalance =
+            verifyResponse?.data?.entry?.balanceAfter ??
+            verifyResponse?.data?.wallet?.balance ??
+            null;
+
+          if (verifiedBalance !== null && Number(verifiedBalance) > 0) {
+            setNewBalance(Number(verifiedBalance));
+          } else {
+            await new Promise(r => setTimeout(r, 800));
+            const balRes = await walletService.getBalance();
+            setNewBalance(balRes.data.balance || currentBalance + total);
+          }
+        } catch (verifyErr) {
+          console.warn('⚠️ Verify API failed:', verifyErr);
+          await new Promise(r => setTimeout(r, 800));
+          try {
+            const balRes = await walletService.getBalance();
+            setNewBalance(balRes.data.balance || currentBalance + total);
+          } catch {
+            setNewBalance(currentBalance + total);
+          }
         }
       }
 
