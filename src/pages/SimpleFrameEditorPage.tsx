@@ -597,7 +597,6 @@ const SimpleFrameEditorPage: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
 
       {/* ── Saved Designs Panel ─────────────────────────────────────────── */}
       {showSavedPanel && (
@@ -642,40 +641,27 @@ const SimpleFrameEditorPage: React.FC = () => {
                       key={design.id}
                       className="bg-gray-50 rounded-xl overflow-hidden border border-gray-200 hover:border-orange-300 transition group"
                     >
-                      {/* Thumbnail */}
                       <div className="aspect-video bg-gray-100 overflow-hidden">
                         {design.thumbnail ? (
-                          <img
-                            src={design.thumbnail}
-                            alt={design.name}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={design.thumbnail} alt={design.name} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl">🖼</div>
                         )}
                       </div>
-
-                      {/* Info */}
                       <div className="p-3">
                         <p className="font-semibold text-gray-800 text-xs truncate mb-0.5">{design.productName}</p>
                         <p className="text-gray-400 text-xs truncate mb-3">
                           {new Date(design.savedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
-
-                        {/* Actions */}
                         <div className="flex gap-2">
                           <button
                             onClick={() => loadDesign(design)}
                             className="flex-1 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition"
-                          >
-                            Load
-                          </button>
+                          >Load</button>
                           <button
                             onClick={() => deleteDesign(design.id)}
                             className="w-8 h-7 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition text-sm"
-                          >
-                            🗑
-                          </button>
+                          >🗑</button>
                         </div>
                       </div>
                     </div>
