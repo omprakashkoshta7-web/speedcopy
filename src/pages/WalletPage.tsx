@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import financeService from '../services/finance.service';
 import walletService from '../services/wallet.service';
 import { useAuth } from '../context/AuthContext';
 
@@ -48,7 +47,7 @@ const WalletPage: React.FC = () => {
     setError('');
     
     try {
-      // Try multiple endpoints in parallel
+      // Fetch wallet data - balance and transactions from /api/wallet
       const [balanceResponse, transactionResponse] = await Promise.all([
         walletService.getBalance(),
         walletService.getTransactionHistory({ page: 1, limit: 20 })
@@ -57,39 +56,11 @@ const WalletPage: React.FC = () => {
       console.log('💰 Balance response:', balanceResponse);
       console.log('📋 Transaction response:', transactionResponse);
       
-      // Parse balance — handle all possible response structures
-      const balRaw: any = balanceResponse;
-      const balData: any =
-        balRaw?.data?.data ||
-        balRaw?.data ||
-        balRaw || {};
-      
-      const parsedBalance =
-        balData?.balance ??
-        balData?.walletBalance ??
-        balData?.amount ??
-        0;
-      
-      setBalance(Number(parsedBalance) || 0);
-      
-      // Parse transactions — handle all possible response structures
-      const txRaw: any = transactionResponse;
-      const txData: any =
-        txRaw?.data?.data ||
-        txRaw?.data ||
-        txRaw || {};
-      
-      const parsedTx: Transaction[] =
-        txData?.entries ||
-        txData?.transactions ||
-        txData?.data ||
-        txData?.ledger ||
-        (Array.isArray(txData) ? txData : []);
-      
-      setTransactions(parsedTx);
+      setBalance(Number(balanceResponse?.data?.balance) || 0);
+      setTransactions(transactionResponse?.data?.entries || []);
 
     } catch (err: any) {
-      console.error('Primary wallet API failed:', err);
+      console.error('Wallet API failed:', err);
       
       if (err.response?.status === 401) {
         setError('auth_expired');
@@ -97,50 +68,8 @@ const WalletPage: React.FC = () => {
         return;
       }
       
-      // Fallback: try finance service
-      try {
-        const [walletRes, ledgerRes] = await Promise.all([
-          financeService.getWalletBalance(),
-          financeService.getTransactionHistory({ page: 1, limit: 20 })
-        ]);
-        
-        console.log('💰 Fallback balance response:', walletRes);
-        console.log('📋 Fallback ledger response:', ledgerRes);
-        
-        // Parse balance from any nesting level
-        const wRaw: any = walletRes;
-        const wData: any =
-          wRaw?.data?.data ||
-          wRaw?.data ||
-          wRaw || {};
-        
-        const fallbackBalance =
-          wData?.balance ??
-          wData?.walletBalance ??
-          wData?.amount ??
-          0;
-        
-        setBalance(Number(fallbackBalance) || 0);
-        
-        // Parse transactions
-        const lRaw: any = ledgerRes;
-        const lData: any =
-          lRaw?.data?.data ||
-          lRaw?.data ||
-          lRaw || {};
-        
-        const fallbackTx: Transaction[] =
-          lData?.entries ||
-          lData?.transactions ||
-          lData?.data ||
-          (Array.isArray(lData) ? lData : []);
-        
-        setTransactions(fallbackTx);
-      } catch (fallbackErr) {
-        console.error('Fallback also failed:', fallbackErr);
-        setBalance(0);
-        setTransactions([]);
-      }
+      setBalance(0);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
