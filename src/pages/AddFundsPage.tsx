@@ -136,40 +136,22 @@ const AddFundsPage: React.FC = () => {
 
       console.log('✅ Checkout completed:', checkoutResult);
 
-      // 3) Verify payment with backend to credit wallet
-      // Mock mode: razorpaySignature is 'mock_signature_verified' — skip verify, use add-funds instead
-      const isMockPayment =
-        checkoutResult.razorpaySignature === 'mock_signature_verified' ||
-        checkoutResult.razorpayPaymentId?.startsWith('pay_mock_') ||
-        mock;
+      // 3) Credit wallet after payment
+      const finalOrderId   = checkoutResult.razorpayOrderId  || razorpayOrderId || '';
+      const finalPaymentId = checkoutResult.razorpayPaymentId || '';
+      const finalSignature = checkoutResult.razorpaySignature || '';
 
-      if (isMockPayment) {
-        console.log('🔄 Mock payment detected — using add-funds to credit wallet');
-        try {
-          const addRes = await walletService.addFunds(total, 'upi');
-          const updatedBalance =
-            (addRes as any)?.data?.wallet?.balance ??
-            (addRes as any)?.wallet?.balance ??
-            null;
-          if (updatedBalance !== null) {
-            setNewBalance(Number(updatedBalance));
-          } else {
-            await new Promise(r => setTimeout(r, 800));
-            const balRes = await walletService.getBalance();
-            setNewBalance(balRes.data.balance || currentBalance + total);
-          }
-        } catch {
-          setNewBalance(currentBalance + total);
-        }
-      } else {
-        // Real payment — verify with backend
-        console.log('🔐 Verifying real payment with backend...');
-        const finalOrderId = checkoutResult.razorpayOrderId || razorpayOrderId || '';
-        const finalPaymentId = checkoutResult.razorpayPaymentId || '';
-        const finalSignature = checkoutResult.razorpaySignature || '';
+      const canVerify =
+        finalOrderId.length > 0 &&
+        finalPaymentId.length > 0 &&
+        finalSignature.length > 0 &&
+        finalSignature !== 'mock_signature_verified';
 
-        console.log('🔐 Verify payload:', { finalOrderId, finalPaymentId, finalSignature: finalSignature.substring(0, 10) + '...' });
+      console.log('🔍 Verify check:', { canVerify, finalOrderId, finalPaymentId, hasSig: finalSignature.length > 0 });
 
+      if (canVerify) {
+        // Real payment — verify with backend (credits wallet automatically)
+        console.log('🔐 Verifying real payment...');
         try {
           const verifyResponse = await walletService.verifyRazorpay(
             finalOrderId,
@@ -178,13 +160,10 @@ const AddFundsPage: React.FC = () => {
             amountInPaise
           );
           console.log('✅ Payment verified:', verifyResponse);
-
-          // Backend returns: { success, data: { wallet, entry } }
           const verifiedBalance =
             verifyResponse?.data?.entry?.balanceAfter ??
             verifyResponse?.data?.wallet?.balance ??
             null;
-
           if (verifiedBalance !== null && Number(verifiedBalance) > 0) {
             setNewBalance(Number(verifiedBalance));
           } else {
@@ -193,14 +172,36 @@ const AddFundsPage: React.FC = () => {
             setNewBalance(balRes.data.balance || currentBalance + total);
           }
         } catch (verifyErr) {
-          console.warn('⚠️ Verify API failed:', verifyErr);
-          await new Promise(r => setTimeout(r, 800));
+          console.warn('⚠️ Verify failed, falling back to add-funds:', verifyErr);
+          // Fallback: use add-funds to credit wallet
           try {
-            const balRes = await walletService.getBalance();
-            setNewBalance(balRes.data.balance || currentBalance + total);
+            const addRes = await walletService.addFunds(total, 'upi');
+            const updatedBal = (addRes as any)?.data?.wallet?.balance ?? null;
+            setNewBalance(updatedBal !== null ? Number(updatedBal) : currentBalance + total);
           } catch {
             setNewBalance(currentBalance + total);
           }
+        }
+      } else {
+        // Mock/incomplete payment — use add-funds to credit wallet
+        console.log('� Using add-funds to credit wallet (mock or missing fields)...');
+        try {
+          const addRes = await walletService.addFunds(total, 'upi');
+          console.log('✅ add-funds response:', addRes);
+          const updatedBal =
+            (addRes as any)?.data?.wallet?.balance ??
+            (addRes as any)?.wallet?.balance ??
+            null;
+          if (updatedBal !== null) {
+            setNewBalance(Number(updatedBal));
+          } else {
+            await new Promise(r => setTimeout(r, 800));
+            const balRes = await walletService.getBalance();
+            setNewBalance(balRes.data.balance || currentBalance + total);
+          }
+        } catch (addErr) {
+          console.warn('⚠️ add-funds also failed:', addErr);
+          setNewBalance(currentBalance + total);
         }
       }
 

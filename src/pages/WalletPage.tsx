@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import walletService from '../services/wallet.service';
@@ -24,7 +24,7 @@ const WalletPage: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [isAuthenticated, location]); // Refetch when location changes (e.g., navigating back from add-funds)
+  }, [isAuthenticated, location, fetchWalletData]);
 
   // Also refetch when tab becomes visible again (e.g., after payment)
   useEffect(() => {
@@ -35,9 +35,9 @@ const WalletPage: React.FC = () => {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchWalletData]);
 
-  const fetchWalletData = async () => {
+  const fetchWalletData = useCallback(async () => {
     setLoading(true);
     setError('');
     
@@ -74,7 +74,7 @@ const WalletPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
   const handleLoginAgain = () => {
     // Clear session
