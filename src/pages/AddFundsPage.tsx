@@ -136,9 +136,9 @@ const AddFundsPage: React.FC = () => {
       console.log('🔐 Verifying payment with backend...');
       try {
         const verifyResponse = await walletService.verifyRazorpay(
-          checkoutResult.razorpay_order_id || razorpayOrderId || '',
-          checkoutResult.razorpay_payment_id || '',
-          checkoutResult.razorpay_signature || '',
+          checkoutResult.razorpayOrderId || razorpayOrderId || '',
+          checkoutResult.razorpayPaymentId || '',
+          checkoutResult.razorpaySignature || '',
           total
         );
         console.log('✅ Payment verified:', verifyResponse);
