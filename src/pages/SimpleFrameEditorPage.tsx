@@ -4,6 +4,32 @@ import productService from '../services/product.service';
 import orderService from '../services/order.service';
 import { useAuth } from '../context/AuthContext';
 
+// Google Fonts to load
+const FONTS = [
+  { name: 'Roboto', label: 'Roboto' },
+  { name: 'Playfair Display', label: 'Playfair Display' },
+  { name: 'Pacifico', label: 'Pacifico' },
+  { name: 'Dancing Script', label: 'Dancing Script' },
+  { name: 'Montserrat', label: 'Montserrat' },
+  { name: 'Lato', label: 'Lato' },
+  { name: 'Oswald', label: 'Oswald' },
+  { name: 'Lobster', label: 'Lobster' },
+  { name: 'Raleway', label: 'Raleway' },
+  { name: 'Great Vibes', label: 'Great Vibes' },
+];
+
+interface UserText {
+  id: string;
+  text: string;
+  font: string;
+  size: number;
+  color: string;
+  x: number;
+  y: number;
+  bold: boolean;
+  italic: boolean;
+}
+
 interface ProductRecord {
   _id?: string;
   id?: string;
@@ -63,6 +89,17 @@ const SimpleFrameEditorPage: React.FC = () => {
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
+  // Text layer state
+  const [userTexts, setUserTexts] = useState<UserText[]>([]);
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
+  const [newTextInput, setNewTextInput] = useState('');
+  const [selectedFont, setSelectedFont] = useState('Roboto');
+  const [textSize, setTextSize] = useState(24);
+  const [textColor, setTextColor] = useState('#111111');
+  const [textBold, setTextBold] = useState(false);
+  const [textItalic, setTextItalic] = useState(false);
+  const textDragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+
   const productId = searchParams.get('productId');
 
   const salePrice = product?.sale_price ?? product?.discountedPrice ?? product?.basePrice ?? 0;
@@ -75,7 +112,15 @@ const SimpleFrameEditorPage: React.FC = () => {
   useEffect(() => {
     void init();
     loadSavedDesigns();
+    loadGoogleFonts();
   }, []); // eslint-disable-line
+
+  const loadGoogleFonts = () => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?${FONTS.map(f => `family=${f.name.replace(/ /g, '+')}:wght@400;700`).join('&')}&display=swap`;
+    document.head.appendChild(link);
+  };
 
   // ── Saved Designs (localStorage) ─────────────────────────────────────────
   const STORAGE_KEY = 'speedcopy_saved_designs';
@@ -139,6 +184,66 @@ const SimpleFrameEditorPage: React.FC = () => {
     setSavedDesigns(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
+
+  // ── Text layer functions ──────────────────────────────────────────────────
+  const addText = () => {
+    if (!newTextInput.trim()) return;
+    const editorW = editorRef.current?.clientWidth || 600;
+    const editorH = editorRef.current?.clientHeight || 500;
+    const txt: UserText = {
+      id: `text_${Date.now()}`,
+      text: newTextInput.trim(),
+      font: selectedFont,
+      size: textSize,
+      color: textColor,
+      x: editorW / 2 - 80,
+      y: editorH / 2 - 20,
+      bold: textBold,
+      italic: textItalic,
+    };
+    setUserTexts(prev => [...prev, txt]);
+    setSelectedTextId(txt.id);
+    setNewTextInput('');
+  };
+
+  const onTextMouseDown = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedTextId(id);
+    setSelectedPhotoId(null);
+    const txt = userTexts.find(t => t.id === id);
+    if (!txt) return;
+    textDragRef.current = { id, startX: e.clientX, startY: e.clientY, origX: txt.x, origY: txt.y };
+    const onMove = (ev: MouseEvent) => {
+      if (!textDragRef.current) return;
+      const dx = ev.clientX - textDragRef.current.startX;
+      const dy = ev.clientY - textDragRef.current.startY;
+      setUserTexts(prev => prev.map(t =>
+        t.id === textDragRef.current!.id
+          ? { ...t, x: textDragRef.current!.origX + dx, y: textDragRef.current!.origY + dy }
+          : t
+      ));
+    };
+    const onUp = () => {
+      textDragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const updateSelectedText = (changes: Partial<UserText>) => {
+    if (!selectedTextId) return;
+    setUserTexts(prev => prev.map(t => t.id === selectedTextId ? { ...t, ...changes } : t));
+  };
+
+  const deleteText = (id: string) => {
+    setUserTexts(prev => prev.filter(t => t.id !== id));
+    if (selectedTextId === id) setSelectedTextId(null);
+  };
+
+  const selectedText = userTexts.find(t => t.id === selectedTextId) || null;
 
   // ── Submit for Review ─────────────────────────────────────────────────────
   const submitForReview = async () => {
@@ -552,6 +657,74 @@ const SimpleFrameEditorPage: React.FC = () => {
             </div>
           )}
 
+          {/* Text Tool */}
+          <div className="p-4 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-800 mb-3">Add Text</h3>
+            <select value={selectedFont} onChange={e => setSelectedFont(e.target.value)}
+              className="w-full px-2 py-1.5 rounded-lg text-xs border border-gray-200 mb-2 focus:outline-none"
+              style={{ fontFamily: selectedFont }}>
+              {FONTS.map(f => (
+                <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>{f.label}</option>
+              ))}
+            </select>
+            <div className="flex gap-2 mb-2">
+              <input type="number" min={8} max={120} value={textSize}
+                onChange={e => setTextSize(Number(e.target.value))}
+                className="w-16 px-2 py-1.5 rounded-lg text-xs border border-gray-200 focus:outline-none text-center" title="Font size" />
+              <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)}
+                className="w-9 h-8 rounded-lg border border-gray-200 cursor-pointer p-0.5" title="Text color" />
+              <button onClick={() => setTextBold(b => !b)}
+                className={`w-8 h-8 rounded-lg text-xs font-bold border transition ${textBold ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>B</button>
+              <button onClick={() => setTextItalic(i => !i)}
+                className={`w-8 h-8 rounded-lg text-xs italic border transition ${textItalic ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>I</button>
+            </div>
+            <div className="flex gap-1.5">
+              <input type="text" value={newTextInput} onChange={e => setNewTextInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addText()}
+                placeholder="Type text..." style={{ fontFamily: selectedFont }}
+                className="flex-1 px-2 py-1.5 rounded-lg text-xs border border-gray-200 focus:outline-none" />
+              <button onClick={addText} disabled={!newTextInput.trim()}
+                className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 disabled:opacity-40 transition">Add</button>
+            </div>
+          </div>
+
+          {/* Selected text controls */}
+          {selectedText && (
+            <div className="p-4 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-800 mb-3">Edit Text</h3>
+              <input type="text" value={selectedText.text}
+                onChange={e => updateSelectedText({ text: e.target.value })}
+                className="w-full px-2 py-1.5 rounded-lg text-xs border border-gray-200 focus:outline-none mb-2"
+                style={{ fontFamily: selectedText.font }} />
+              <select value={selectedText.font} onChange={e => updateSelectedText({ font: e.target.value })}
+                className="w-full px-2 py-1.5 rounded-lg text-xs border border-gray-200 mb-2 focus:outline-none"
+                style={{ fontFamily: selectedText.font }}>
+                {FONTS.map(f => (
+                  <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>{f.label}</option>
+                ))}
+              </select>
+              <div className="flex gap-2 mb-2">
+                <input type="number" min={8} max={120} value={selectedText.size}
+                  onChange={e => updateSelectedText({ size: Number(e.target.value) })}
+                  className="w-16 px-2 py-1.5 rounded-lg text-xs border border-gray-200 focus:outline-none text-center" />
+                <input type="color" value={selectedText.color}
+                  onChange={e => updateSelectedText({ color: e.target.value })}
+                  className="w-9 h-8 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+                <button onClick={() => updateSelectedText({ bold: !selectedText.bold })}
+                  className={`w-8 h-8 rounded-lg text-xs font-bold border transition ${selectedText.bold ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>B</button>
+                <button onClick={() => updateSelectedText({ italic: !selectedText.italic })}
+                  className={`w-8 h-8 rounded-lg text-xs italic border transition ${selectedText.italic ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>I</button>
+              </div>
+              <button onClick={() => deleteText(selectedText.id)}
+                className="w-full py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 flex items-center justify-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Remove Text
+              </button>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="p-4">
             <button onClick={downloadDesign} className="w-full py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 flex items-center justify-center gap-2">
@@ -666,8 +839,53 @@ const SimpleFrameEditorPage: React.FC = () => {
               );
             })}
 
+            {/* Text layers — draggable */}
+            {userTexts.map(txt => {
+              const isSelected = selectedTextId === txt.id;
+              return (
+                <div
+                  key={txt.id}
+                  onMouseDown={e => onTextMouseDown(e, txt.id)}
+                  onClick={e => { e.stopPropagation(); setSelectedTextId(txt.id); setSelectedPhotoId(null); }}
+                  style={{
+                    position: 'absolute',
+                    left: txt.x,
+                    top: txt.y,
+                    cursor: 'move',
+                    fontFamily: txt.font,
+                    fontSize: txt.size,
+                    color: txt.color,
+                    fontWeight: txt.bold ? 'bold' : 'normal',
+                    fontStyle: txt.italic ? 'italic' : 'normal',
+                    userSelect: 'none',
+                    padding: '2px 4px',
+                    border: isSelected ? '1.5px dashed #ff6a3d' : '1.5px dashed transparent',
+                    borderRadius: '3px',
+                    zIndex: isSelected ? 15 : 8,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {txt.text}
+                  {isSelected && (
+                    <button
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); deleteText(txt.id); }}
+                      style={{
+                        position: 'absolute', top: -10, right: -10,
+                        width: 20, height: 20, borderRadius: '50%',
+                        background: '#ef4444', color: '#fff',
+                        border: 'none', cursor: 'pointer',
+                        fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        zIndex: 20,
+                      }}
+                    >×</button>
+                  )}
+                </div>
+              );
+            })}
+
             {/* Empty state overlay */}
-            {userPhotos.length === 0 && (
+            {userPhotos.length === 0 && userTexts.length === 0 && (
               <div
                 className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
                 style={{ background: 'rgba(0,0,0,0.03)' }}
