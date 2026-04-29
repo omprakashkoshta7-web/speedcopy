@@ -1,8 +1,10 @@
 import React from 'react';
 import { Palette } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 type BusinessCardCustomizerProps = {
   onCustomizationChange?: (data: BusinessCardCustomization) => void;
+  productImage?: string;   // selected product image to pass to editor
 };
 
 export type BusinessCardCustomization = {
@@ -20,9 +22,16 @@ export type BusinessCardCustomization = {
   layout?: string;
 };
 
-const BusinessCardCustomizer: React.FC<BusinessCardCustomizerProps> = () => {
+const BusinessCardCustomizer: React.FC<BusinessCardCustomizerProps> = ({ productImage }) => {
+  const navigate = useNavigate();
+
   const handleCustomizeClick = () => {
-    window.location.href = '/card-editor';
+    // Pass product image as query param so CardEditorPage can preload it
+    if (productImage) {
+      navigate(`/card-editor?productImage=${encodeURIComponent(productImage)}`);
+    } else {
+      navigate('/card-editor');
+    }
   };
 
   return (

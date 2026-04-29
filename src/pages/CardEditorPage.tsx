@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Download, Save, Palette, Type, Layout, Layers, ShoppingCart, Upload, X } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import html2canvas from 'html2canvas';
@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 
 const CardEditorPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -15,6 +16,15 @@ const CardEditorPage: React.FC = () => {
   const [selectedLayout, setSelectedLayout] = useState('horizontal');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [imagePosition, setImagePosition] = useState<'left' | 'right' | 'background' | 'logo'>('logo');
+
+  // Load product image from URL param on mount
+  useEffect(() => {
+    const productImage = searchParams.get('productImage');
+    if (productImage) {
+      setUploadedImage(decodeURIComponent(productImage));
+      setImagePosition('background');
+    }
+  }, []); // eslint-disable-line
   const [cardText, setCardText] = useState({
     name: 'John Doe',
     title: 'CEO & Founder',

@@ -458,7 +458,10 @@ const ProductDetailPage: React.FC = () => {
             {/* Business Card Customizer - Show for all printing products */}
             {(flowType === 'printing' || searchParams.get('type') === 'business') && (
               <div className="mb-6">
-                <BusinessCardCustomizer onCustomizationChange={setBusinessCardCustomization} />
+                <BusinessCardCustomizer
+                  onCustomizationChange={setBusinessCardCustomization}
+                  productImage={normalizedImages[Math.min(activeImg, normalizedImages.length - 1)]}
+                />
               </div>
             )}
 
