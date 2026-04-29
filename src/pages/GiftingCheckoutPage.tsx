@@ -211,23 +211,20 @@ const GiftingCheckoutPage: React.FC = () => {
     try {
       console.log('🎯 Starting Razorpay payment for amount:', totalAmount);
 
-      // Create Razorpay payment order via payment service (uses VITE_RAZORPAY_KEY_ID from env)
-      const paymentResponse = await paymentService.createPayment({
-        orderId: `order_${Date.now()}`,
-        amount: totalAmount,
-        currency: 'INR'
-      });
+      // Initiate via wallet service (same as AddFundsPage)
+      const initiateRes = await walletService.initiateRazorpay(totalAmount, `order_${Date.now()}`);
+      const paymentData = initiateRes.data;
 
-      console.log('🔑 Using Razorpay key:', paymentResponse.keyId?.substring(0, 8) + '...');
-      console.log('📦 Razorpay Order ID:', paymentResponse.razorpayOrderId);
-      console.log('💰 Amount in paise:', paymentResponse.amount);
+      console.log('🔑 Using Razorpay key:', paymentData.keyId?.substring(0, 8) + '...');
+      console.log('📦 Razorpay Order ID:', paymentData.razorpayOrderId);
+      console.log('💰 Amount in paise:', paymentData.amount);
 
       // Open Razorpay checkout modal
       const checkoutResult = await paymentService.openCheckout({
-        keyId: paymentResponse.keyId,
-        amount: paymentResponse.amount,
-        currency: paymentResponse.currency,
-        orderId: paymentResponse.razorpayOrderId,
+        keyId: paymentData.keyId,
+        amount: paymentData.amount,
+        currency: paymentData.currency || 'INR',
+        orderId: paymentData.razorpayOrderId,
         name: 'SpeedCopy',
         description: `Gifting Order - ${orderData.items.length} item(s)`,
         purpose: 'gifting_order',
@@ -235,16 +232,13 @@ const GiftingCheckoutPage: React.FC = () => {
 
       console.log('✅ Payment completed:', checkoutResult);
 
-      // Verify payment (order payment, not wallet topup)
-      await paymentService.verifyPayment(checkoutResult, totalAmount, true);
-
       // Create order with payment details
       const finalOrderData = {
         ...orderData,
-        razorpayOrderId: checkoutResult.razorpayOrderId,
+        razorpayOrderId: checkoutResult.razorpayOrderId || paymentData.razorpayOrderId,
         razorpayPaymentId: checkoutResult.razorpayPaymentId,
         razorpaySignature: checkoutResult.razorpaySignature,
-        paymentStatus: 'completed'
+        paymentStatus: 'completed',
       };
 
       const response = await orderService.createOrder(finalOrderData);

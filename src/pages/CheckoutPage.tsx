@@ -305,38 +305,39 @@ const CheckoutPage: React.FC = () => {
 
   const handleRazorpayPayment = async (orderData: any, totalAmount: number) => {
     try {
-      // Create Razorpay payment order
-      const paymentResponse = await paymentService.createPayment({
-        orderId: `order_${Date.now()}`,
-        amount: totalAmount,
-        currency: 'INR'
-      });
+      // 1) Initiate Razorpay order via wallet service (same as AddFundsPage)
+      const initiateRes = await walletService.initiateRazorpay(
+        totalAmount,
+        `order_${Date.now()}`
+      );
+      const paymentData = initiateRes.data;
 
-      // Open Razorpay checkout
+      console.log('💳 Razorpay initiate response:', paymentData);
+
+      // 2) Open Razorpay checkout
       const checkoutResult = await paymentService.openCheckout({
-        keyId: paymentResponse.keyId,
-        amount: paymentResponse.amount,
-        currency: paymentResponse.currency,
-        orderId: paymentResponse.razorpayOrderId,
+        keyId: paymentData.keyId,
+        amount: paymentData.amount,       // already in paise from backend
+        currency: paymentData.currency || 'INR',
+        orderId: paymentData.razorpayOrderId,
         name: 'SpeedCopy',
         description: `Shopping Order - ${orderData.items.length} item(s)`,
       });
 
-      // Verify payment (order payment, not wallet topup)
-      await paymentService.verifyPayment(checkoutResult, totalAmount, true);
+      console.log('✅ Checkout result:', checkoutResult);
 
-      // Create order with payment details
+      // 3) Create order with payment details (no wallet verify needed for order payment)
       const finalOrderData = {
         ...orderData,
-        razorpayOrderId: checkoutResult.razorpayOrderId,
+        razorpayOrderId: checkoutResult.razorpayOrderId || paymentData.razorpayOrderId,
         razorpayPaymentId: checkoutResult.razorpayPaymentId,
         razorpaySignature: checkoutResult.razorpaySignature,
-        paymentStatus: 'completed'
+        paymentStatus: 'completed',
       };
 
       const response = await orderService.createOrder(finalOrderData);
       const createdOrderId = response.data?._id;
-      
+
       if (createdOrderId) {
         navigate(`/payment-success?orderId=${createdOrderId}&paymentId=${checkoutResult.razorpayPaymentId}`);
       } else {
