@@ -41,99 +41,36 @@ const PrintCheckoutPage: React.FC = () => {
         
         // Fetch location details if locationId exists
         if (locationId) {
-          // Check if it's a default store (starts with 'default-')
-          if (locationId.startsWith('default-')) {
-            console.log('📍 Using default store for locationId:', locationId);
-            
-            // Default stores mapping - matches PickupLocationPage
-            const defaultStores: Record<string, any> = {
-              'default-1': {
-                _id: 'default-1',
-                name: 'SpeedCopy Hub - Jabalpur',
-                address: {
-                  line1: 'Shop No. 15, Gole Market',
-                  line2: 'Near Railway Station',
-                  city: 'Jabalpur',
-                  state: 'Madhya Pradesh',
-                  pincode: '482001',
-                },
-                phone: '+91-9876543210',
-              },
-              'default-2': {
-                _id: 'default-2',
-                name: 'SpeedCopy Express - Delhi',
-                address: {
-                  line1: 'A-123, Connaught Place',
-                  line2: 'Central Delhi',
-                  city: 'New Delhi',
-                  state: 'Delhi',
-                  pincode: '110001',
-                },
-                phone: '+91-9876543211',
-              },
-              'default-3': {
-                _id: 'default-3',
-                name: 'SpeedCopy Center - Mumbai',
-                address: {
-                  line1: 'Shop 45, Linking Road',
-                  line2: 'Bandra West',
-                  city: 'Mumbai',
-                  state: 'Maharashtra',
-                  pincode: '400050',
-                },
-                phone: '+91-9876543212',
-              },
-              'default-4': {
-                _id: 'default-4',
-                name: 'SpeedCopy Plus - Bangalore',
-                address: {
-                  line1: '12th Main, Koramangala 4th Block',
-                  line2: '',
-                  city: 'Bangalore',
-                  state: 'Karnataka',
-                  pincode: '560034',
-                },
-                phone: '+91-9876543213',
-              },
-              'default-5': {
-                _id: 'default-5',
-                name: 'SpeedCopy Station - Chennai',
-                address: {
-                  line1: 'No. 78, T. Nagar Main Road',
-                  line2: '',
-                  city: 'Chennai',
-                  state: 'Tamil Nadu',
-                  pincode: '600017',
-                },
-                phone: '+91-9876543214',
-              },
-            };
-            
-            const defaultStore = defaultStores[locationId];
-            if (defaultStore) {
-              setPickupLocation(defaultStore);
-              console.log('✅ Default store loaded:', defaultStore);
-              console.log('✅ Store name:', defaultStore.name);
-              console.log('✅ Store address:', defaultStore.address);
-              console.log('✅ Store phone:', defaultStore.phone);
+          // Fetch store from API only — no mock/default data
+          try {
+            const [vendorRes, printingRes] = await Promise.allSettled([
+              productService.getNearbyVendorStores({ limit: 50 }),
+              productService.getPrintingPickupLocations({ limit: 50 }),
+            ]);
+
+            const allStores: any[] = [];
+
+            if (vendorRes.status === 'fulfilled') {
+              const s = vendorRes.value?.data?.stores || vendorRes.value?.stores || [];
+              if (Array.isArray(s)) allStores.push(...s);
+            }
+            if (printingRes.status === 'fulfilled') {
+              const s = printingRes.value?.data || [];
+              if (Array.isArray(s)) allStores.push(...s);
+            }
+
+            const foundStore = allStores.find(
+              (s: any) => String(s._id || s.id) === locationId
+            );
+
+            if (foundStore) {
+              setPickupLocation(foundStore);
+              console.log('✅ Store loaded from API:', foundStore);
             } else {
-              console.error('❌ Default store not found for locationId:', locationId);
-              console.log('Available default store IDs:', Object.keys(defaultStores));
+              console.warn('⚠️ Store not found for locationId:', locationId);
             }
-          } else {
-            // Fetch from API for real store IDs
-            try {
-              const response = await productService.getNearbyVendorStores({ limit: 50 });
-              const stores = response?.data?.stores || response?.stores || [];
-              const foundStore = stores.find((s: any) => String(s._id || s.id) === locationId);
-              
-              if (foundStore) {
-                setPickupLocation(foundStore);
-                console.log('✅ Store loaded from API:', foundStore);
-              }
-            } catch (error) {
-              console.error('❌ Failed to fetch store from API:', error);
-            }
+          } catch (error) {
+            console.error('❌ Failed to fetch store from API:', error);
           }
         }
 

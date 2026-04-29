@@ -247,17 +247,7 @@ const PickupLocationPage: React.FC = () => {
     fetchLocations();
   }, []);
 
-  // Default stores — shown when API returns no results
-  const DEFAULT_STORES: PickupLocation[] = [
-    { id: 'default-1', name: 'SpeedCopy Hub - Jabalpur', address: 'Shop No. 15, Gole Market, Near Railway Station, Jabalpur, Madhya Pradesh, 482001', distance: '2.5 km', rating: 4.8, reviews: 124, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
-    { id: 'default-2', name: 'SpeedCopy Express - Delhi', address: 'A-123, Connaught Place, Central Delhi, New Delhi, Delhi, 110001', distance: '5.2 km', rating: 4.9, reviews: 256, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
-    { id: 'default-3', name: 'SpeedCopy Center - Mumbai', address: 'Shop 45, Linking Road, Bandra West, Mumbai, Maharashtra, 400050', distance: '3.8 km', rating: 4.7, reviews: 189, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
-    { id: 'default-4', name: 'SpeedCopy Plus - Bangalore', address: '12th Main, Koramangala 4th Block, Bangalore, Karnataka, 560034', distance: '4.1 km', rating: 4.8, reviews: 203, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
-    { id: 'default-5', name: 'SpeedCopy Station - Chennai', address: 'No. 78, T. Nagar Main Road, Chennai, Tamil Nadu, 600017', distance: '6.3 km', rating: 4.6, reviews: 167, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
-    { id: 'default-6', name: 'SpeedCopy Point - Pune', address: 'FC Road, Shivajinagar, Pune, Maharashtra, 411005', distance: '7.1 km', rating: 4.7, reviews: 98, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'print'], icon: 'store' },
-    { id: 'default-7', name: 'SpeedCopy Zone - Hyderabad', address: 'Banjara Hills Road No. 12, Hyderabad, Telangana, 500034', distance: '8.4 km', rating: 4.5, reviews: 143, status: 'open', statusLabel: '9:00 AM - 9:00 PM', amenities: ['wifi', 'parking', 'print'], icon: 'store' },
-  ];
-
+  // No default/mock stores — only real API data shown
   const fetchLocations = async () => {
     try {
       setLoading(true);
@@ -273,21 +263,12 @@ const PickupLocationPage: React.FC = () => {
         console.log('⚠️ Using default India coordinates');
       }
 
-      // Call both APIs (vendor + printing pickup)
       const apiStores = await loadStores({ ...geoParams, radius: 5000, limit: 50 });
       console.log('✅ API stores:', apiStores.length);
-
-      if (apiStores.length > 0) {
-        // Merge API stores with defaults (API first, then defaults not already present)
-        const apiIds = new Set(apiStores.map(s => s.id));
-        const merged = [...apiStores, ...DEFAULT_STORES.filter(d => !apiIds.has(d.id))];
-        setLocations(merged);
-      } else {
-        setLocations(DEFAULT_STORES);
-      }
+      setLocations(apiStores);
     } catch (error) {
       console.error('❌ fetchLocations error:', error);
-      setLocations(DEFAULT_STORES);
+      setLocations([]);
     } finally {
       setLoading(false);
     }
