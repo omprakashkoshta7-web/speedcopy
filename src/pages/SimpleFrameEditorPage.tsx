@@ -58,6 +58,10 @@ const SimpleFrameEditorPage: React.FC = () => {
   const [savedDesigns, setSavedDesigns] = useState<SavedDesign[]>([]);
   const [showSavedPanel, setShowSavedPanel] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewNote, setReviewNote] = useState('');
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const productId = searchParams.get('productId');
 
@@ -134,6 +138,56 @@ const SimpleFrameEditorPage: React.FC = () => {
     const updated = savedDesigns.filter(d => d.id !== id);
     setSavedDesigns(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
+
+  // ── Submit for Review ─────────────────────────────────────────────────────
+  const submitForReview = async () => {
+    if (userPhotos.length === 0) {
+      alert('Please upload a photo before submitting for review.');
+      return;
+    }
+    setReviewSubmitting(true);
+    try {
+      // Generate composite thumbnail
+      let previewImage = productImages[activeImageIndex] || '';
+      try {
+        const { default: html2canvas } = await import('html2canvas');
+        if (editorRef.current) {
+          const canvas = await html2canvas(editorRef.current, { useCORS: true, allowTaint: true, scale: 0.4 });
+          const maxW = 400;
+          const ratio = Math.min(maxW / canvas.width, 1);
+          const resized = document.createElement('canvas');
+          resized.width = Math.round(canvas.width * ratio);
+          resized.height = Math.round(canvas.height * ratio);
+          const ctx = resized.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(canvas, 0, 0, resized.width, resized.height);
+            previewImage = resized.toDataURL('image/jpeg', 0.5);
+          }
+        }
+      } catch { /* use product image */ }
+
+      // Save review submission to localStorage
+      const reviewKey = 'speedcopy_review_submissions';
+      const existing = JSON.parse(localStorage.getItem(reviewKey) || '[]');
+      const submission = {
+        id: `review_${Date.now()}`,
+        productId: (product?._id || product?.id || productId || ''),
+        productName: product?.name || 'Design',
+        previewImage,
+        note: reviewNote,
+        status: 'pending',
+        submittedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(reviewKey, JSON.stringify([submission, ...existing].slice(0, 50)));
+
+      setReviewSubmitted(true);
+      setReviewNote('');
+    } catch (e) {
+      console.error('Review submission failed:', e);
+    } finally {
+      setReviewSubmitting(false);
+    }
   };
 
   const init = async () => {
@@ -401,6 +455,13 @@ const SimpleFrameEditorPage: React.FC = () => {
             <button onClick={saveDesign} className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 flex items-center gap-1.5">
               💾 Save
               {saveMsg && <span className="text-green-600 text-xs font-semibold">{saveMsg}</span>}
+            </button>
+            <button
+              onClick={() => { setShowReviewModal(true); setReviewSubmitted(false); }}
+              className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition"
+              style={{ backgroundColor: '#111111', color: '#ffffff' }}
+            >
+              ✅ Ready for Review
             </button>
             <button
               onClick={() => setShowSavedPanel(true)}
@@ -702,6 +763,117 @@ const SimpleFrameEditorPage: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Ready for Review Modal ───────────────────────────────────────── */}
+      {showReviewModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+          onClick={() => { setShowReviewModal(false); setReviewSubmitted(false); }}
+        >
+          <div
+            className="bg-white rounded-2xl w-full overflow-hidden"
+            style={{ maxWidth: '480px', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {!reviewSubmitted ? (
+              <>
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                  <div>
+                    <h2 className="font-bold text-gray-900 text-lg">Ready for Review</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">Submit your design for team review</p>
+                  </div>
+                  <button onClick={() => setShowReviewModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition">
+                    <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Body */}
+                <div className="p-6">
+                  {/* Design preview */}
+                  <div className="rounded-xl overflow-hidden border border-gray-200 mb-5" style={{ height: '180px', backgroundColor: '#f9fafb' }}>
+                    {productImages[activeImageIndex] ? (
+                      <img src={productImages[activeImageIndex]} alt="Design preview" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl">🖼</div>
+                    )}
+                  </div>
+
+                  {/* Product info */}
+                  <div className="flex items-center gap-3 p-3 rounded-xl mb-4" style={{ backgroundColor: '#f3f4f6' }}>
+                    <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600 text-sm">✅</div>
+                    <div>
+                      <p className="font-semibold text-gray-800 text-sm">{product?.name || 'Design'}</p>
+                      <p className="text-xs text-gray-400">₹{displayPrice.toFixed(2)} · Qty: {quantity}</p>
+                    </div>
+                  </div>
+
+                  {/* Note */}
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Add a note (optional)</label>
+                  <textarea
+                    value={reviewNote}
+                    onChange={e => setReviewNote(e.target.value)}
+                    placeholder="Any special instructions or notes for the review team..."
+                    rows={3}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm focus:outline-none resize-none mb-5"
+                    style={{ border: '1.5px solid #e5e7eb', color: '#374151' }}
+                  />
+
+                  {/* Info box */}
+                  <div className="flex items-start gap-2 p-3 rounded-xl mb-5" style={{ backgroundColor: '#eff6ff', border: '1px solid #dbeafe' }}>
+                    <span className="text-blue-500 text-sm mt-0.5">ℹ️</span>
+                    <p className="text-xs text-blue-700 leading-relaxed">
+                      Our team will review your design within 24 hours. You'll be notified once it's approved and ready to print.
+                    </p>
+                  </div>
+
+                  {/* Submit */}
+                  <button
+                    onClick={submitForReview}
+                    disabled={reviewSubmitting}
+                    className="w-full py-3 rounded-xl text-sm font-bold transition disabled:opacity-50"
+                    style={{ backgroundColor: '#111111', color: '#ffffff' }}
+                  >
+                    {reviewSubmitting ? 'Submitting...' : '✅ Submit for Review'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* Success State */
+              <div className="p-10 text-center">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
+                  style={{ backgroundColor: '#16a34a', boxShadow: '0 0 0 12px #dcfce7' }}>
+                  <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h2 className="font-bold text-gray-900 text-xl mb-2">Submitted for Review!</h2>
+                <p className="text-sm text-gray-500 mb-1">Your design has been submitted successfully.</p>
+                <p className="text-sm text-gray-400 mb-6">Our team will review it within 24 hours.</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowReviewModal(false); setReviewSubmitted(false); }}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                    style={{ backgroundColor: '#f3f4f6', color: '#374151' }}
+                  >
+                    Continue Editing
+                  </button>
+                  <button
+                    onClick={() => navigate('/cart')}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white"
+                    style={{ backgroundColor: '#111111' }}
+                  >
+                    Go to Cart
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
