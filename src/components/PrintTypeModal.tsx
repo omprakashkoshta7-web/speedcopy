@@ -160,22 +160,22 @@ const PrintTypeModal: React.FC<PrintTypeModalProps> = ({ onClose }) => {
       {step === 2 && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-          style={{ backgroundColor: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(3px)' }}
+          style={{ backgroundColor: '#f0f0f0' }}
           onClick={onClose}
         >
           <div className="w-full" style={{ maxWidth: '560px' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setStep(1)} className="flex items-center gap-2 text-white text-sm font-semibold mb-4 hover:opacity-70 transition">
+            <button onClick={() => setStep(1)} className="flex items-center gap-2 text-gray-800 text-sm font-semibold mb-4 hover:opacity-70 transition">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Back
             </button>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {bindingTypes.map((pt, idx) => (
                 <button
                   key={pt.label}
                   className="flex flex-col items-center justify-center py-8 sm:py-10 px-4 sm:px-6 rounded-2xl sm:rounded-3xl bg-white hover:bg-gray-50 transition text-center"
-                  style={{ border: '1.5px solid #e5e7eb', minHeight: '180px' }}
+                  style={{ border: '1.5px solid #e5e7eb', minHeight: '180px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                   onClick={() => {
                     const types = ['standard', 'soft-binding', 'spiral-binding', 'thesis-binding'];
                     onClose();
