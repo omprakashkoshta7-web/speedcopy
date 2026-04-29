@@ -29,9 +29,13 @@ const AddFundsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [newBalance, setNewBalance] = useState(0);
+  const [currentBalance, setCurrentBalance] = useState(0);
 
+  // Fetch current balance on mount
   useEffect(() => {
-    // no-op: Razorpay script is loaded on-demand by paymentService
+    walletService.getBalance().then(res => {
+      setCurrentBalance(res.data.balance || 0);
+    }).catch(() => {});
   }, []);
 
   const displayAmount = selectedQuick ?? amount;
@@ -143,27 +147,37 @@ const AddFundsPage: React.FC = () => {
         );
         console.log('✅ Payment verified:', verifyResponse);
 
-        // Get updated balance from verify response or fetch fresh
+        // Get updated balance from verify response
         const verifiedBalance =
           (verifyResponse as any)?.data?.wallet?.balance ??
           (verifyResponse as any)?.data?.balance ??
+          (verifyResponse as any)?.wallet?.balance ??
           null;
 
-        if (verifiedBalance !== null) {
+        if (verifiedBalance !== null && Number(verifiedBalance) > 0) {
           setNewBalance(Number(verifiedBalance));
         } else {
-          // Fetch fresh balance
-          const balRes = await walletService.getBalance();
-          setNewBalance(balRes.data.balance);
+          // Wait briefly for backend to process, then fetch fresh balance
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          try {
+            const balRes = await walletService.getBalance();
+            const freshBalance = balRes.data.balance;
+            // If fresh balance is still 0 or same as before, add the amount manually
+            setNewBalance(freshBalance > currentBalance ? freshBalance : currentBalance + total);
+          } catch {
+            setNewBalance(currentBalance + total);
+          }
         }
       } catch (verifyErr) {
-        console.warn('⚠️ Verify API failed, fetching balance directly...', verifyErr);
-        // Even if verify fails, try to get updated balance
+        console.warn('⚠️ Verify API failed, calculating balance...', verifyErr);
+        // Verify failed - wait and try fresh fetch
+        await new Promise(resolve => setTimeout(resolve, 1500));
         try {
           const balRes = await walletService.getBalance();
-          setNewBalance(balRes.data.balance);
+          const freshBalance = balRes.data.balance;
+          setNewBalance(freshBalance > currentBalance ? freshBalance : currentBalance + total);
         } catch {
-          setNewBalance(total); // fallback to added amount
+          setNewBalance(currentBalance + total);
         }
       }
 
@@ -300,7 +314,7 @@ const AddFundsPage: React.FC = () => {
             <h2 className="font-bold text-gray-900 mb-2" style={{ fontSize: '22px' }}>Funds Added!</h2>
             <p className="text-sm mb-1" style={{ color: '#9ca3af' }}>₹{total.toFixed(2)} has been added to your wallet.</p>
             <p className="font-bold text-gray-900 mb-6" style={{ fontSize: '28px' }}>New Balance: ₹{newBalance.toFixed(2)}</p>
-            <button onClick={() => navigate('/wallet')}
+            <button onClick={() => navigate('/wallet', { state: { refreshed: Date.now() } })}
               className="w-full py-3 text-white font-bold rounded-full hover:bg-gray-700 transition text-sm"
               style={{ backgroundColor: '#111111' }}>
               Back to Wallet
