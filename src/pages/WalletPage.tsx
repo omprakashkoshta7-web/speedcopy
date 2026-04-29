@@ -1,17 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import walletService from '../services/wallet.service';
+import walletService, { LedgerEntry } from '../services/wallet.service';
 import { useAuth } from '../context/AuthContext';
 
-interface Transaction {
-  _id: string;
-  type: string;
-  amount: number;
-  description: string;
-  createdAt: string;
-  referenceId: string;
-  status: string;
+interface Transaction extends LedgerEntry {
+  status?: string;
 }
 
 const WalletPage: React.FC = () => {
@@ -47,29 +41,35 @@ const WalletPage: React.FC = () => {
     setError('');
     
     try {
-      // Fetch wallet data - balance and transactions from /api/wallet
-      const [balanceResponse, transactionResponse] = await Promise.all([
-        walletService.getBalance(),
-        walletService.getTransactionHistory({ page: 1, limit: 20 })
-      ]);
-      
-      console.log('💰 Balance response:', balanceResponse);
-      console.log('📋 Transaction response:', transactionResponse);
-      
-      setBalance(Number(balanceResponse?.data?.balance) || 0);
-      setTransactions(transactionResponse?.data?.entries || []);
+      // GET /api/wallet/overview returns wallet + recent_entries together
+      const overviewRes = await walletService.getOverview();
+      const overview = overviewRes.data;
+
+      console.log('💰 Wallet overview:', overview);
+
+      // Balance from wallet object
+      const wallet = overview?.wallet;
+      setBalance(Number(wallet?.balance) || 0);
+
+      // Transactions from recent_entries (overview) or ledger
+      const recentEntries: Transaction[] = overview?.recent_entries || [];
+
+      if (recentEntries.length > 0) {
+        setTransactions(recentEntries);
+      } else {
+        // Fetch full ledger separately
+        const ledgerRes = await walletService.getLedger({ page: 1, limit: 20 });
+        setTransactions(ledgerRes.data.entries as Transaction[]);
+      }
 
     } catch (err: any) {
-      console.error('Wallet API failed:', err);
-      
+      console.error('Wallet fetch failed:', err);
       if (err.response?.status === 401) {
         setError('auth_expired');
-        setLoading(false);
-        return;
+      } else {
+        setBalance(0);
+        setTransactions([]);
       }
-      
-      setBalance(0);
-      setTransactions([]);
     } finally {
       setLoading(false);
     }

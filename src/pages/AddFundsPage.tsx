@@ -143,39 +143,31 @@ const AddFundsPage: React.FC = () => {
           checkoutResult.razorpayOrderId || razorpayOrderId || '',
           checkoutResult.razorpayPaymentId || '',
           checkoutResult.razorpaySignature || '',
-          total
+          amountInPaise
         );
         console.log('✅ Payment verified:', verifyResponse);
 
-        // Get updated balance from verify response
+        // Backend returns: { success, data: { wallet, entry } }
         const verifiedBalance =
-          (verifyResponse as any)?.data?.wallet?.balance ??
-          (verifyResponse as any)?.data?.balance ??
-          (verifyResponse as any)?.wallet?.balance ??
+          verifyResponse?.data?.entry?.balanceAfter ??
+          verifyResponse?.data?.wallet?.balance ??
           null;
 
         if (verifiedBalance !== null && Number(verifiedBalance) > 0) {
           setNewBalance(Number(verifiedBalance));
         } else {
-          // Wait briefly for backend to process, then fetch fresh balance
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          try {
-            const balRes = await walletService.getBalance();
-            const freshBalance = balRes.data.balance;
-            // If fresh balance is still 0 or same as before, add the amount manually
-            setNewBalance(freshBalance > currentBalance ? freshBalance : currentBalance + total);
-          } catch {
-            setNewBalance(currentBalance + total);
-          }
+          // Fallback: wait briefly then fetch fresh balance
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const balRes = await walletService.getBalance();
+          setNewBalance(balRes.data.balance || currentBalance + total);
         }
       } catch (verifyErr) {
-        console.warn('⚠️ Verify API failed, calculating balance...', verifyErr);
-        // Verify failed - wait and try fresh fetch
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        console.warn('⚠️ Verify API failed:', verifyErr);
+        // Wait and fetch fresh balance
+        await new Promise(resolve => setTimeout(resolve, 1000));
         try {
           const balRes = await walletService.getBalance();
-          const freshBalance = balRes.data.balance;
-          setNewBalance(freshBalance > currentBalance ? freshBalance : currentBalance + total);
+          setNewBalance(balRes.data.balance || currentBalance + total);
         } catch {
           setNewBalance(currentBalance + total);
         }

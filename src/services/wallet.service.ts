@@ -1,44 +1,43 @@
 import apiClient from './api.service';
 import { API_CONFIG } from '../config/api.config';
 
-// Wallet & Finance API Interfaces
+// ── Interfaces matching exact backend response ──────────────────────────────
+
+export interface WalletObject {
+  _id: string;
+  userId: string;
+  userType: string;
+  balance: number;
+  currency: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LedgerEntry {
+  _id: string;
+  walletId: string;
+  userId: string;
+  type: 'credit' | 'debit';
+  category: string;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  referenceId: string;
+  referenceType: string;
+  description: string;
+  metadata: any;
+  createdAt: string;
+}
+
 export interface WalletBalance {
   balance: number;
   currency: string;
   lastUpdated?: string;
 }
 
-export interface WalletOverview {
-  balance: number;
-  totalSpent: number;
-  totalRefunds: number;
-  totalTopups: number;
-  currency: string;
-  statistics?: {
-    thisMonth: {
-      spent: number;
-      topups: number;
-    };
-    lastMonth: {
-      spent: number;
-      topups: number;
-    };
-  };
-}
-
-export interface Transaction {
-  _id: string;
-  type: string;
-  amount: number;
-  description: string;
-  createdAt: string;
-  referenceId: string;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
-  metadata?: any;
-}
-
 export interface WalletLedger {
-  entries: Transaction[];
+  entries: LedgerEntry[];
   pagination: {
     page: number;
     limit: number;
@@ -47,16 +46,31 @@ export interface WalletLedger {
   };
 }
 
+export interface RazorpayInitiateResponse {
+  keyId: string;
+  razorpayOrderId: string;
+  amount: number;   // paise mein
+  currency: string;
+  mock?: boolean;
+}
+
+export interface RazorpayVerifyResponse {
+  wallet: WalletObject;
+  entry: LedgerEntry;
+}
+
+// Legacy compat
+export interface Transaction extends LedgerEntry {
+  status: string;
+}
+
 export interface TopupConfig {
   minAmount: number;
   maxAmount: number;
   processingFee: number;
   feePercentage: number;
   paymentMethods: string[];
-  limits: {
-    daily: number;
-    monthly: number;
-  };
+  limits: { daily: number; monthly: number };
 }
 
 export interface TopupPreview {
@@ -64,375 +78,189 @@ export interface TopupPreview {
   processingFee: number;
   total: number;
   currency: string;
-  breakdown?: {
-    baseAmount: number;
-    fees: number;
-    taxes: number;
-  };
 }
 
-export interface RazorpayInitiateResponse {
-  keyId: string;
-  razorpayOrderId: string;
-  amount: number;
-  currency: string;
-  mock?: boolean;
-  clientSideFallback?: boolean;
-}
+// ── Service ─────────────────────────────────────────────────────────────────
 
-export interface RazorpayVerifyResponse {
-  success: boolean;
-  wallet: WalletBalance;
-  transaction: Transaction;
-  message: string;
-}
-
-/**
- * Wallet Service - Handles all wallet & finance operations
- * Implements all 9 required APIs with fallback support
- */
 class WalletService {
-  private isNotFoundError(error: any) {
-    return error?.response?.status === 404;
-  }
 
-  private isRouteNotFoundError(error: any) {
-    return this.isNotFoundError(error) && 
-           error?.response?.data?.message === 'Route not found';
-  }
-
-  private wrapSuccess(data: any) {
+  private wrapSuccess<T>(data: T) {
     return { success: true, data };
   }
 
-  /**
-   * 1. Get Wallet Balance - Current balance dekhna
-   */
+  // ── 1. GET /api/wallet ───────────────────────────────────────────────────
   async getBalance(): Promise<{ success: boolean; data: WalletBalance }> {
-    // Only try /api/wallet - other endpoints (/balance, /overview) don't exist on backend
     try {
-      const response = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET);
-      console.log('💰 Wallet API response:', response.data);
-
-      const raw = response.data;
-      const walletData =
-        raw?.data?.wallet ||
-        raw?.data ||
-        raw?.wallet ||
-        raw || {};
-
-      const balance =
-        walletData?.balance ??
-        walletData?.walletBalance ??
-        walletData?.amount ??
-        0;
-
+      const res = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET);
+      // Response: { success, data: { _id, balance, currency, ... } }
+      const wallet: WalletObject = res.data?.data || res.data;
       return this.wrapSuccess({
-        balance: Number(balance) || 0,
-        currency: walletData?.currency || 'INR',
-        lastUpdated: walletData?.lastUpdated || new Date().toISOString()
+        balance: Number(wallet?.balance) || 0,
+        currency: wallet?.currency || 'INR',
+        lastUpdated: wallet?.updatedAt || new Date().toISOString(),
       });
-    } catch (error: any) {
-      console.warn('⚠️ Wallet API failed:', error?.response?.status, error?.message);
+    } catch (err: any) {
+      console.warn('⚠️ GET /api/wallet failed:', err?.response?.status);
       return this.wrapSuccess({ balance: 0, currency: 'INR', lastUpdated: new Date().toISOString() });
     }
   }
 
-  /**
-   * 2. Get Wallet Overview - Detailed stats (total spent, refunds)
-   */
-  async getOverview(): Promise<{ success: boolean; data: WalletOverview }> {
-    // /api/wallet/overview doesn't exist, use /api/wallet
-    const balanceRes = await this.getBalance();
+  // ── 2. GET /api/wallet/overview ──────────────────────────────────────────
+  // Returns wallet + recent_entries + topup_presets + payment_methods
+  async getOverview(): Promise<{ success: boolean; data: any }> {
+    try {
+      const res = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET_OVERVIEW);
+      return this.wrapSuccess(res.data?.data || res.data);
+    } catch (err: any) {
+      console.warn('⚠️ GET /api/wallet/overview failed:', err?.response?.status);
+      // Fallback to basic wallet
+      return this.getBalance().then(b => this.wrapSuccess({
+        wallet: { balance: b.data.balance, currency: b.data.currency },
+        recent_entries: [],
+        topup_presets: [50, 100, 500, 1000],
+        payment_methods: [],
+      }));
+    }
+  }
+
+  // ── 3. GET /api/wallet/topup-config ─────────────────────────────────────
+  async getTopupConfig(): Promise<{ success: boolean; data: TopupConfig }> {
+    try {
+      const res = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.TOPUP_CONFIG);
+      const d = res.data?.data || res.data;
+      return this.wrapSuccess({
+        minAmount: d?.min_amount ?? 10,
+        maxAmount: d?.max_amount ?? 50000,
+        processingFee: 0,
+        feePercentage: d?.processing_fee_pct ?? 0,
+        paymentMethods: (d?.payment_methods || []).map((m: any) => m.id || m),
+        limits: { daily: 25000, monthly: 100000 },
+      });
+    } catch {
+      return this.wrapSuccess({
+        minAmount: 10, maxAmount: 50000, processingFee: 0, feePercentage: 0,
+        paymentMethods: ['upi', 'card', 'netbanking'],
+        limits: { daily: 25000, monthly: 100000 },
+      });
+    }
+  }
+
+  // ── 4. POST /api/wallet/topup-preview ───────────────────────────────────
+  async previewTopup(amount: number): Promise<{ success: boolean; data: TopupPreview }> {
+    try {
+      const res = await apiClient.post(API_CONFIG.ENDPOINTS.FINANCE.TOPUP_PREVIEW, { amount });
+      const d = res.data?.data || res.data;
+      return this.wrapSuccess({
+        amount: d?.amount ?? amount,
+        processingFee: d?.processing_fee ?? 0,
+        total: d?.total_payable ?? amount,
+        currency: d?.currency ?? 'INR',
+      });
+    } catch {
+      return this.wrapSuccess({ amount, processingFee: 0, total: amount, currency: 'INR' });
+    }
+  }
+
+  // ── 5. POST /api/wallet/add-funds ────────────────────────────────────────
+  async addFunds(amount: number, paymentMethod: string): Promise<{ success: boolean; data: any }> {
+    const res = await apiClient.post(API_CONFIG.ENDPOINTS.FINANCE.ADD_FUNDS, { amount, paymentMethod });
+    return res.data;
+  }
+
+  // ── 6. POST /api/wallet/razorpay/initiate ────────────────────────────────
+  async initiateRazorpay(
+    amount: number,
+    orderId?: string
+  ): Promise<{ success: boolean; data: RazorpayInitiateResponse }> {
+    console.log('🚀 Initiating Razorpay for ₹', amount);
+    const res = await apiClient.post(API_CONFIG.ENDPOINTS.FINANCE.RAZORPAY_INITIATE, {
+      orderId: orderId || `wallet_topup_${Date.now()}`,
+      amount,          // rupees — backend converts to paise
+      currency: 'INR',
+    });
+    console.log('✅ Razorpay initiate response:', res.data);
+    const d = res.data?.data || res.data;
     return this.wrapSuccess({
-      balance: balanceRes.data.balance,
-      totalSpent: 0,
-      totalRefunds: 0,
-      totalTopups: 0,
-      currency: 'INR'
+      keyId: d?.keyId || d?.key_id || this.getRazorpayKey(),
+      razorpayOrderId: d?.razorpayOrderId || d?.razorpay_order_id || '',
+      amount: d?.amount || Math.round(amount * 100),   // paise
+      currency: d?.currency || 'INR',
+      mock: d?.mock || false,
     });
   }
 
-  /**
-   * 3. Get Wallet Ledger - Transaction history (paginated)
-   */
-  async getLedger(params?: { 
-    page?: number; 
-    limit?: number; 
-    type?: string 
-  }): Promise<{ success: boolean; data: WalletLedger }> {
-    // /api/wallet/ledger doesn't exist, use getTransactionHistory instead
-    return this.getTransactionHistory(params);
-  }
-
-  /**
-   * 4. Get Topup Config - Topup options aur limits
-   */
-  async getTopupConfig(): Promise<{ success: boolean; data: TopupConfig }> {
-    try {
-      const response = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.TOPUP_CONFIG);
-      return response.data;
-    } catch (error) {
-      if (!this.isRouteNotFoundError(error)) throw error;
-      
-      // Fallback - default config
-      return this.wrapSuccess({
-        minAmount: 10,
-        maxAmount: 50000,
-        processingFee: 0,
-        feePercentage: 0,
-        paymentMethods: ['razorpay', 'upi', 'card', 'netbanking'],
-        limits: {
-          daily: 25000,
-          monthly: 100000
-        }
-      });
-    }
-  }
-
-  /**
-   * 5. Preview Topup - Topup amount + fees calculate karna
-   */
-  async previewTopup(amount: number): Promise<{ success: boolean; data: TopupPreview }> {
-    try {
-      const response = await apiClient.post(API_CONFIG.ENDPOINTS.FINANCE.TOPUP_PREVIEW, { amount });
-      return response.data;
-    } catch (error) {
-      if (!this.isRouteNotFoundError(error)) throw error;
-      
-      // Fallback calculation
-      const processingFee = 0; // 0% fee as per current implementation
-      return this.wrapSuccess({
-        amount,
-        processingFee,
-        total: amount + processingFee,
-        currency: 'INR',
-        breakdown: {
-          baseAmount: amount,
-          fees: processingFee,
-          taxes: 0
-        }
-      });
-    }
-  }
-
-  /**
-   * 6. Add Funds - Wallet mein paise add karna
-   */
-  async addFunds(amount: number, paymentMethod: string): Promise<{ success: boolean; data: any }> {
-    try {
-      const response = await apiClient.post(API_CONFIG.ENDPOINTS.FINANCE.ADD_FUNDS, {
-        amount,
-        paymentMethod
-      });
-      return response.data;
-    } catch (error) {
-      if (!this.isNotFoundError(error)) throw error;
-      
-      // Fallback to app endpoint
-      const response = await apiClient.post('/api/app/wallet/add-funds', {
-        amount,
-        paymentMethod
-      });
-      return response.data;
-    }
-  }
-
-  /**
-   * 7. Initiate Razorpay - Razorpay payment start karna
-   */
-  async initiateRazorpay(
-    amount: number, 
-    orderId?: string
-  ): Promise<{ success: boolean; data: RazorpayInitiateResponse }> {
-    console.log('🚀 Wallet service initiating Razorpay for amount:', amount);
-    
-    try {
-      const response = await apiClient.post(API_CONFIG.ENDPOINTS.FINANCE.RAZORPAY_INITIATE, {
-        amount,
-        orderId: orderId || `wallet_topup_${Date.now()}`,
-        currency: 'INR'
-      });
-      
-      console.log('✅ Wallet API response:', response.data);
-      
-      // Handle different response structures
-      const responseData = response.data?.data || response.data;
-      
-      return {
-        success: true,
-        data: {
-          keyId: responseData?.keyId || responseData?.key_id || responseData?.key || this.getEnvRazorpayKey(),
-          razorpayOrderId: responseData?.razorpayOrderId || responseData?.razorpay_order_id || responseData?.orderId || orderId,
-          amount: responseData?.amount || Math.round(amount * 100),
-          currency: responseData?.currency || 'INR',
-          mock: responseData?.mock || false,
-          clientSideFallback: responseData?.clientSideFallback || false
-        }
-      };
-    } catch (error: any) {
-      console.warn('⚠️ Wallet API failed, trying fallback...', error);
-      
-      // Allow fallback for 404 (route not found) or 401 (auth issues) errors
-      const isNotFound = this.isRouteNotFoundError(error);
-      const isAuthError = error?.response?.status === 401;
-      
-      if (!isNotFound && !isAuthError) throw error;
-      
-      // Fallback to payment service endpoint
-      try {
-        const response = await apiClient.post(API_CONFIG.ENDPOINTS.PAYMENT.CREATE, {
-          orderId: orderId || `wallet_topup_${Date.now()}`,
-          amount,
-          currency: 'INR'
-        });
-        
-        console.log('✅ Payment API fallback response:', response.data);
-        
-        const responseData = response.data?.data || response.data;
-        
-        return {
-          success: true,
-          data: {
-            keyId: responseData?.keyId || responseData?.key_id || responseData?.key || this.getEnvRazorpayKey(),
-            razorpayOrderId: responseData?.razorpayOrderId || responseData?.razorpay_order_id || responseData?.orderId || orderId,
-            amount: responseData?.amount || Math.round(amount * 100),
-            currency: responseData?.currency || 'INR',
-            mock: responseData?.mock || false,
-            clientSideFallback: responseData?.clientSideFallback || false
-          }
-        };
-      } catch (fallbackError) {
-        console.warn('⚠️ Payment API also failed, using env configuration...', fallbackError);
-        
-        // If both APIs fail, use environment configuration
-        const envKey = this.getEnvRazorpayKey();
-        return {
-          success: true,
-          data: {
-            keyId: envKey,
-            razorpayOrderId: orderId || `wallet_topup_${Date.now()}`,
-            amount: Math.round(amount * 100),
-            currency: 'INR',
-            mock: !envKey || envKey.startsWith('mock_'),
-            clientSideFallback: true
-          }
-        };
-      }
-    }
-  }
-
-  private getEnvRazorpayKey(): string {
-    const env: any = (import.meta as any)?.env || {};
-    const keyId = env.VITE_RAZORPAY_KEY_ID || env.VITE_RAZORPAY_KEY || 'rzp_test_6vdMK3ln1NsDMj';
-    console.log('🔑 Using Razorpay key from env:', keyId ? `${keyId.substring(0, 8)}...` : 'Not found');
-    return keyId;
-  }
-
-  /**
-   * 8. Verify Razorpay - Payment verify karke wallet credit karna
-   */
+  // ── 7. POST /api/wallet/razorpay/verify ──────────────────────────────────
   async verifyRazorpay(
-    orderId: string,
-    paymentId: string,
-    signature: string,
-    amount?: number
+    razorpayOrderId: string,
+    razorpayPaymentId: string,
+    razorpaySignature: string,
+    amountPaise?: number   // paise mein (live mode only)
   ): Promise<{ success: boolean; data: RazorpayVerifyResponse }> {
+    console.log('🔐 Verifying Razorpay payment...');
+    const res = await apiClient.post(API_CONFIG.ENDPOINTS.FINANCE.RAZORPAY_VERIFY, {
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+      amount: amountPaise,
+    });
+    console.log('✅ Verify response:', res.data);
+    return res.data;
+  }
+
+  // ── 8. GET /api/wallet/ledger ────────────────────────────────────────────
+  async getLedger(params?: {
+    page?: number;
+    limit?: number;
+    category?: string;
+  }): Promise<{ success: boolean; data: WalletLedger }> {
     try {
-      const response = await apiClient.post(API_CONFIG.ENDPOINTS.FINANCE.RAZORPAY_VERIFY, {
-        orderId,
-        paymentId,
-        signature,
-        amount,
-        // Also include alternate field names for compatibility
-        razorpayOrderId: orderId,
-        razorpayPaymentId: paymentId,
-        razorpaySignature: signature
+      const res = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.LEDGER, { params });
+      const d = res.data?.data || res.data;
+      return this.wrapSuccess({
+        entries: d?.entries || [],
+        pagination: {
+          page: d?.meta?.page ?? params?.page ?? 1,
+          limit: d?.meta?.limit ?? params?.limit ?? 20,
+          total: d?.meta?.total ?? 0,
+          totalPages: d?.meta?.totalPages ?? 1,
+        },
       });
-      return response.data;
-    } catch (error) {
-      if (!this.isRouteNotFoundError(error)) throw error;
-      
-      // Fallback to payment service endpoint
-      const response = await apiClient.post(API_CONFIG.ENDPOINTS.PAYMENT.VERIFY, {
-        razorpayOrderId: orderId,
-        razorpayPaymentId: paymentId,
-        razorpaySignature: signature,
-        orderId,
-        paymentId,
-        signature,
-        amount
+    } catch (err: any) {
+      console.warn('⚠️ GET /api/wallet/ledger failed:', err?.response?.status);
+      return this.wrapSuccess({
+        entries: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
       });
-      return response.data;
     }
   }
 
-  /**
-   * 9. Transaction History - Pura transaction log
-   */
+  // Alias used by WalletPage
   async getTransactionHistory(params?: {
     page?: number;
     limit?: number;
-    type?: string;
-    startDate?: string;
-    endDate?: string;
+    category?: string;
   }): Promise<{ success: boolean; data: WalletLedger }> {
-    // /api/wallet/transactions and /api/wallet/ledger don't exist on backend
-    // Use only /api/wallet which returns balance + transactions together
-    try {
-      const response = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET);
-      console.log('📋 Transactions from /api/wallet:', response.data);
-
-      const raw = response.data;
-      const txData =
-        raw?.data?.data ||
-        raw?.data ||
-        raw || {};
-
-      const entries: Transaction[] =
-        txData?.entries ||
-        txData?.transactions ||
-        txData?.data ||
-        txData?.ledger ||
-        (Array.isArray(txData) ? txData : []);
-
-      return this.wrapSuccess({
-        entries,
-        pagination: txData?.pagination || {
-          page: params?.page || 1,
-          limit: params?.limit || 20,
-          total: entries.length,
-          totalPages: 1
-        }
-      });
-    } catch (error: any) {
-      console.warn('⚠️ Wallet transactions failed:', error?.response?.status);
-      return this.wrapSuccess({
-        entries: [],
-        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
-      });
-    }
+    return this.getLedger(params);
   }
 
-  // Additional utility methods
-  async getPaymentMethods() {
-    const config = await this.getTopupConfig();
-    return config.data.paymentMethods;
+  // ── Utilities ────────────────────────────────────────────────────────────
+  private getRazorpayKey(): string {
+    const env: any = (import.meta as any)?.env || {};
+    return env.VITE_RAZORPAY_KEY_ID || env.VITE_RAZORPAY_KEY || 'rzp_test_6vdMK3ln1NsDMj';
   }
 
   async validateTopupAmount(amount: number): Promise<{ valid: boolean; message?: string }> {
-    const config = await this.getTopupConfig();
-    const { minAmount, maxAmount } = config.data;
-    
-    if (amount < minAmount) {
-      return { valid: false, message: `Minimum topup amount is ₹${minAmount}` };
-    }
-    
-    if (amount > maxAmount) {
-      return { valid: false, message: `Maximum topup amount is ₹${maxAmount}` };
-    }
-    
+    const cfg = await this.getTopupConfig();
+    if (amount < cfg.data.minAmount)
+      return { valid: false, message: `Minimum topup amount is ₹${cfg.data.minAmount}` };
+    if (amount > cfg.data.maxAmount)
+      return { valid: false, message: `Maximum topup amount is ₹${cfg.data.maxAmount}` };
     return { valid: true };
+  }
+
+  async getPaymentMethods() {
+    const cfg = await this.getTopupConfig();
+    return cfg.data.paymentMethods;
   }
 }
 
