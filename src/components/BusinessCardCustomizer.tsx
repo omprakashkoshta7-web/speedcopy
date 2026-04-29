@@ -1,6 +1,6 @@
 import React from 'react';
 import { Palette } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 type BusinessCardCustomizerProps = {
   onCustomizationChange?: (data: BusinessCardCustomization) => void;
