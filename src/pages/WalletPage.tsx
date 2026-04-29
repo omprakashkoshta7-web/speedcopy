@@ -32,6 +32,17 @@ const WalletPage: React.FC = () => {
     }
   }, [isAuthenticated, location]); // Refetch when location changes (e.g., navigating back from add-funds)
 
+  // Also refetch when tab becomes visible again (e.g., after payment)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isAuthenticated) {
+        fetchWalletData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [isAuthenticated]);
+
   const fetchWalletData = async () => {
     setLoading(true);
     setError('');

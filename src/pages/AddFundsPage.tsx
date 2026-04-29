@@ -132,9 +132,42 @@ const AddFundsPage: React.FC = () => {
 
       console.log('✅ Checkout completed:', checkoutResult);
 
-      // 3) Show success - payment completed
+      // 3) Verify payment with backend to credit wallet
+      console.log('🔐 Verifying payment with backend...');
+      try {
+        const verifyResponse = await walletService.verifyRazorpay(
+          checkoutResult.razorpay_order_id || razorpayOrderId || '',
+          checkoutResult.razorpay_payment_id || '',
+          checkoutResult.razorpay_signature || '',
+          total
+        );
+        console.log('✅ Payment verified:', verifyResponse);
+
+        // Get updated balance from verify response or fetch fresh
+        const verifiedBalance =
+          (verifyResponse as any)?.data?.wallet?.balance ??
+          (verifyResponse as any)?.data?.balance ??
+          null;
+
+        if (verifiedBalance !== null) {
+          setNewBalance(Number(verifiedBalance));
+        } else {
+          // Fetch fresh balance
+          const balRes = await walletService.getBalance();
+          setNewBalance(balRes.data.balance);
+        }
+      } catch (verifyErr) {
+        console.warn('⚠️ Verify API failed, fetching balance directly...', verifyErr);
+        // Even if verify fails, try to get updated balance
+        try {
+          const balRes = await walletService.getBalance();
+          setNewBalance(balRes.data.balance);
+        } catch {
+          setNewBalance(total); // fallback to added amount
+        }
+      }
+
       console.log('✅ Payment completed successfully');
-      setNewBalance(total);
       setSuccess(true);
     } catch (err: any) {
       console.error('❌ Payment flow failed:', err);

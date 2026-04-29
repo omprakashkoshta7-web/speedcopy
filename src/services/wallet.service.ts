@@ -109,56 +109,47 @@ class WalletService {
    * 1. Get Wallet Balance - Current balance dekhna
    */
   async getBalance(): Promise<{ success: boolean; data: WalletBalance }> {
-    try {
-      const response = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET_BALANCE);
-      console.log('💰 Raw balance API response:', response.data);
-      
-      // Handle all possible response structures from backend
-      const raw = response.data;
-      const walletData =
-        raw?.data?.wallet ||
-        raw?.data ||
-        raw?.wallet ||
-        raw || {};
-      
-      const balance =
-        walletData?.balance ??
-        walletData?.walletBalance ??
-        walletData?.amount ??
-        0;
-      
-      return this.wrapSuccess({
-        balance: Number(balance) || 0,
-        currency: walletData?.currency || 'INR',
-        lastUpdated: walletData?.lastUpdated || new Date().toISOString()
-      });
-    } catch (error: any) {
-      console.warn('⚠️ Balance API failed:', error?.response?.status, error?.message);
-      
-      // Try wallet overview as fallback
+    // Try multiple endpoints in order since /api/wallet/balance may not exist
+    const endpoints = [
+      API_CONFIG.ENDPOINTS.FINANCE.WALLET_OVERVIEW,   // /api/wallet/overview
+      API_CONFIG.ENDPOINTS.FINANCE.WALLET,             // /api/wallet
+      API_CONFIG.ENDPOINTS.FINANCE.WALLET_BALANCE,     // /api/wallet/balance (may 404)
+      API_CONFIG.ENDPOINTS.FINANCE.TRANSACTION_HISTORY, // /api/wallet/transactions (derive from latest)
+    ];
+
+    for (const endpoint of endpoints) {
       try {
-        const overviewRes = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET_OVERVIEW);
-        const ovData = overviewRes.data?.data || overviewRes.data || {};
-        return this.wrapSuccess({
-          balance: Number(ovData?.balance || ovData?.walletBalance || 0),
-          currency: 'INR',
-          lastUpdated: new Date().toISOString()
-        });
-      } catch {
-        // Last resort: try main wallet endpoint
-        try {
-          const walletRes = await apiClient.get(API_CONFIG.ENDPOINTS.FINANCE.WALLET);
-          const wData = walletRes.data?.data || walletRes.data || {};
+        const response = await apiClient.get(endpoint);
+        console.log(`💰 Balance from ${endpoint}:`, response.data);
+
+        const raw = response.data;
+        const walletData =
+          raw?.data?.wallet ||
+          raw?.data ||
+          raw?.wallet ||
+          raw || {};
+
+        const balance =
+          walletData?.balance ??
+          walletData?.walletBalance ??
+          walletData?.amount ??
+          null;
+
+        if (balance !== null && balance !== undefined) {
           return this.wrapSuccess({
-            balance: Number(wData?.balance || wData?.walletBalance || 0),
-            currency: 'INR',
-            lastUpdated: new Date().toISOString()
+            balance: Number(balance) || 0,
+            currency: walletData?.currency || 'INR',
+            lastUpdated: walletData?.lastUpdated || new Date().toISOString()
           });
-        } catch {
-          return this.wrapSuccess({ balance: 0, currency: 'INR', lastUpdated: new Date().toISOString() });
         }
+      } catch (error: any) {
+        console.warn(`⚠️ Balance API failed for ${endpoint}:`, error?.response?.status, error?.message);
+        // Continue to next endpoint
       }
     }
+
+    // All endpoints failed - return 0
+    return this.wrapSuccess({ balance: 0, currency: 'INR', lastUpdated: new Date().toISOString() });
   }
 
   /**
