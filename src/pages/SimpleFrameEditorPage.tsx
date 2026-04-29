@@ -28,6 +28,17 @@ interface UserPhoto {
   rotation: number;
 }
 
+interface SavedDesign {
+  id: string;
+  name: string;
+  productId: string;
+  productName: string;
+  thumbnail: string;       // base64 preview
+  photos: UserPhoto[];
+  activeImageIndex: number;
+  savedAt: string;
+}
+
 const SimpleFrameEditorPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -44,6 +55,9 @@ const SimpleFrameEditorPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [savedDesigns, setSavedDesigns] = useState<SavedDesign[]>([]);
+  const [showSavedPanel, setShowSavedPanel] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
 
   const productId = searchParams.get('productId');
 
@@ -56,7 +70,62 @@ const SimpleFrameEditorPage: React.FC = () => {
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     void init();
+    loadSavedDesigns();
   }, []); // eslint-disable-line
+
+  // ── Saved Designs (localStorage) ─────────────────────────────────────────
+  const STORAGE_KEY = 'speedcopy_saved_designs';
+
+  const loadSavedDesigns = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setSavedDesigns(JSON.parse(raw));
+    } catch { /* ignore */ }
+  };
+
+  const saveDesign = async () => {
+    if (!product) return;
+
+    // Generate thumbnail from editor
+    let thumbnail = productImages[activeImageIndex] || '';
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      if (editorRef.current) {
+        const canvas = await html2canvas(editorRef.current, { useCORS: true, allowTaint: true, scale: 0.5 });
+        thumbnail = canvas.toDataURL('image/jpeg', 0.6);
+      }
+    } catch { /* use product image as fallback */ }
+
+    const design: SavedDesign = {
+      id: `design_${Date.now()}`,
+      name: `${product.name || 'Design'} - ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`,
+      productId: (product._id || product.id || productId || ''),
+      productName: product.name || 'Design',
+      thumbnail,
+      photos: userPhotos,
+      activeImageIndex,
+      savedAt: new Date().toISOString(),
+    };
+
+    const updated = [design, ...savedDesigns].slice(0, 20); // max 20 designs
+    setSavedDesigns(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    setSaveMsg('Design saved!');
+    setTimeout(() => setSaveMsg(''), 2000);
+  };
+
+  const loadDesign = (design: SavedDesign) => {
+    setUserPhotos(design.photos);
+    setActiveImageIndex(design.activeImageIndex);
+    setSelectedPhotoId(null);
+    setShowSavedPanel(false);
+  };
+
+  const deleteDesign = (id: string) => {
+    const updated = savedDesigns.filter(d => d.id !== id);
+    setSavedDesigns(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
 
   const init = async () => {
     try {
@@ -296,7 +365,22 @@ const SimpleFrameEditorPage: React.FC = () => {
               <span className="w-7 text-center text-sm font-semibold">{quantity}</span>
               <button onClick={() => setQuantity(q => q + 1)} className="w-7 h-7 rounded bg-white flex items-center justify-center font-bold text-gray-600 text-sm">+</button>
             </div>
-            <button onClick={downloadDesign} className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200">💾 Save</button>
+            <button onClick={saveDesign} className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 flex items-center gap-1.5">
+              💾 Save
+              {saveMsg && <span className="text-green-600 text-xs font-semibold">{saveMsg}</span>}
+            </button>
+            <button
+              onClick={() => setShowSavedPanel(true)}
+              className="px-4 py-2 rounded-lg text-sm font-medium border transition flex items-center gap-1.5"
+              style={{ border: '1.5px solid #e5e7eb', backgroundColor: '#fff', color: '#374151' }}
+            >
+              🗂 My Designs
+              {savedDesigns.length > 0 && (
+                <span className="bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                  {savedDesigns.length}
+                </span>
+              )}
+            </button>
             <button onClick={addToCart} className="px-5 py-2 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600">Add To Cart</button>
           </div>
         </div>
@@ -513,6 +597,95 @@ const SimpleFrameEditorPage: React.FC = () => {
           </div>
         )}
       </div>
+    </div>
+
+      {/* ── Saved Designs Panel ─────────────────────────────────────────── */}
+      {showSavedPanel && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowSavedPanel(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-full overflow-hidden"
+            style={{ maxWidth: '680px', maxHeight: '80vh', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="font-bold text-gray-900 text-lg">My Saved Designs</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{savedDesigns.length} design{savedDesigns.length !== 1 ? 's' : ''} saved</p>
+              </div>
+              <button
+                onClick={() => setShowSavedPanel(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Designs Grid */}
+            <div className="overflow-y-auto p-5" style={{ maxHeight: 'calc(80vh - 80px)' }}>
+              {savedDesigns.length === 0 ? (
+                <div className="text-center py-16">
+                  <span className="text-5xl mb-4 block">🎨</span>
+                  <p className="text-gray-500 font-medium mb-1">No saved designs yet</p>
+                  <p className="text-gray-400 text-sm">Click "Save" in the editor to save your design</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {savedDesigns.map(design => (
+                    <div
+                      key={design.id}
+                      className="bg-gray-50 rounded-xl overflow-hidden border border-gray-200 hover:border-orange-300 transition group"
+                    >
+                      {/* Thumbnail */}
+                      <div className="aspect-video bg-gray-100 overflow-hidden">
+                        {design.thumbnail ? (
+                          <img
+                            src={design.thumbnail}
+                            alt={design.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl">🖼</div>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div className="p-3">
+                        <p className="font-semibold text-gray-800 text-xs truncate mb-0.5">{design.productName}</p>
+                        <p className="text-gray-400 text-xs truncate mb-3">
+                          {new Date(design.savedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => loadDesign(design)}
+                            className="flex-1 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition"
+                          >
+                            Load
+                          </button>
+                          <button
+                            onClick={() => deleteDesign(design.id)}
+                            className="w-8 h-7 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition text-sm"
+                          >
+                            🗑
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
