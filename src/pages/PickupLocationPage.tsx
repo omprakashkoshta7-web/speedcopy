@@ -64,7 +64,8 @@ const mapVendorStoreToLocation = (store: any): PickupLocation => {
   ) amenities.push('print');
 
   // Status — check capacity load too
-  const isActive = store?.isActive !== false && store?.isAvailable !== false && store?.status !== 'inactive';
+  // Show all stores regardless of approval status
+  const isActive = true; // Always show stores, even if not approved
   const is247 = store?.is24x7 || store?.open247 || false;
   const capacity = store?.capacity;
   const isFull = capacity && typeof capacity.currentLoad === 'number' && typeof capacity.dailyLimit === 'number'
