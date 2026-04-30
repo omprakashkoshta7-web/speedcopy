@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { fabric } from 'fabric';
-import { ArrowLeft, Download, Upload, Trash2, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, Upload, Trash2, Plus, Minus } from 'lucide-react';
 import productService from '../services/product.service';
 import orderService from '../services/order.service';
 import { useAuth } from '../context/AuthContext';
@@ -224,15 +224,6 @@ const CanvasEditorPage: React.FC = () => {
       console.error('Error adding to cart:', err);
       setError(err?.message || 'Failed to add to cart');
     }
-  };
-
-  // Download design
-  const downloadDesign = () => {
-    if (!canvas) return;
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL({ multiplier: 2, format: 'png' });
-    link.download = `${product?.name || 'design'}.png`;
-    link.click();
   };
 
   if (loading) {

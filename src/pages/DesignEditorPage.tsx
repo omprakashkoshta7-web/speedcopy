@@ -839,14 +839,6 @@ const DesignEditorPage: React.FC = () => {
     }
   };
 
-  const downloadDesign = () => {
-    if (!canvas) return;
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL({ multiplier: 1.5, format: 'png' });
-    link.download = `${product?.name || 'gifting-design'}.png`;
-    link.click();
-  };
-
   const clearCanvas = () => {
     if (!canvas) return;
     if (!window.confirm('Clear all elements from this page?')) return;

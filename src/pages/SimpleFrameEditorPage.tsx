@@ -420,23 +420,6 @@ const SimpleFrameEditorPage: React.FC = () => {
     if (selectedPhotoId === id) setSelectedPhotoId(null);
   };
 
-  // ── Download ──────────────────────────────────────────────────────────────
-  const downloadDesign = async () => {
-    if (!editorRef.current) return;
-
-    // Use html2canvas if available, else just download product image
-    try {
-      const { default: html2canvas } = await import('html2canvas');
-      const canvas = await html2canvas(editorRef.current, { useCORS: true, allowTaint: true, scale: 2 });
-      const link = document.createElement('a');
-      link.href = canvas.toDataURL('image/png');
-      link.download = `${product?.name || 'design'}.png`;
-      link.click();
-    } catch {
-      alert('Download failed. Please take a screenshot.');
-    }
-  };
-
   // ── Add to cart ───────────────────────────────────────────────────────────
   const addToCart = async () => {
     if (!isAuthenticated) {

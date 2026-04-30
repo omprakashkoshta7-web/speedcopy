@@ -198,15 +198,6 @@ const SimpleDesignEditorPage: React.FC = () => {
     }
   };
 
-  // Download design
-  const downloadDesign = () => {
-    if (!canvas) return;
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL({ format: 'png', multiplier: 2 });
-    link.download = `${product?.name || 'design'}.png`;
-    link.click();
-  };
-
   // Add to cart
   const addToCart = async () => {
     if (!canvas || !product) return;
