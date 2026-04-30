@@ -2,6 +2,72 @@ import apiClient from './api.service';
 import { API_CONFIG } from '../config/api.config';
 import axios from 'axios';
 
+export type StoreQueryParams = {
+  lat?: number;
+  lng?: number;
+  radius?: number;
+  limit?: number;
+  pincode?: string;
+};
+
+const VENDOR_SERVICE_URL = (
+  import.meta.env.VITE_VENDOR_API_URL || 'https://vendor-202671058278.asia-south1.run.app'
+).replace(/\/$/, '');
+
+const cleanStoreQueryParams = (params?: StoreQueryParams) => {
+  const queryParams: StoreQueryParams = {};
+  if (params?.lat !== undefined) queryParams.lat = params.lat;
+  if (params?.lng !== undefined) queryParams.lng = params.lng;
+  if (params?.radius !== undefined) queryParams.radius = params.radius;
+  if (params?.pincode) queryParams.pincode = params.pincode;
+  if (params?.limit !== undefined) queryParams.limit = params.limit;
+  return queryParams;
+};
+
+export const getStoreIdentifier = (store: any): string => {
+  const id =
+    store?._id ||
+    store?.id ||
+    store?.storeId ||
+    store?.store_id ||
+    store?.shopId ||
+    store?.shop_id ||
+    store?.vendorStoreId ||
+    store?.vendor_store_id;
+
+  if (id) return String(id);
+
+  const fallbackParts = [
+    store?.name || store?.storeName || store?.shopName,
+    typeof store?.address === 'string' ? store.address : store?.address?.line1,
+    store?.pincode || store?.address?.pincode,
+  ].filter(Boolean);
+
+  return fallbackParts.length > 0 ? fallbackParts.join('|') : '';
+};
+
+export const extractStoresFromResponse = (response: any): any[] => {
+  const candidates = [
+    response?.data?.stores,
+    response?.data?.data?.stores,
+    response?.data?.data?.shops,
+    response?.data?.data?.locations,
+    response?.data?.shops,
+    response?.data?.locations,
+    response?.stores,
+    response?.shops,
+    response?.locations,
+    response?.data,
+    response,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+
+  return [];
+};
+
 // ============================================================================
 // TYPESCRIPT INTERFACES - Matching Backend Models Exactly
 // ============================================================================
@@ -573,76 +639,65 @@ class ProductService {
    * API: GET /api/vendor/stores/nearby
    * Response: { success, data: { stores: [...], totalFound, searchLocation, searchRadius } }
    */
-  async getNearbyVendorStores(params?: {
-    lat?: number;
-    lng?: number;
-    radius?: number;   // km, default 10
-    limit?: number;    // default 20
-    pincode?: string;
-  }): Promise<any> {
+  async getNearbyVendorStores(params?: StoreQueryParams): Promise<any> {
     try {
-      console.log('🚀 [Product Service] Fetching nearby vendor stores:', params);
-      
-      // Build query params - only include defined values
-      const queryParams: any = {};
-      if (params?.lat !== undefined) queryParams.lat = params.lat;
-      if (params?.lng !== undefined) queryParams.lng = params.lng;
-      if (params?.radius !== undefined) queryParams.radius = params.radius;
-      if (params?.pincode) queryParams.pincode = params.pincode;
-      if (params?.limit !== undefined) queryParams.limit = params.limit;
-      
-      console.log('📤 Query params:', queryParams);
-      
-      const vendorServiceUrl = 'https://vendor-202671058278.asia-south1.run.app';
+      console.log('[Product Service] Fetching nearby vendor stores:', params);
+
+      const queryParams = cleanStoreQueryParams(params);
+      console.log('[Product Service] Vendor store query params:', queryParams);
+
+      try {
+        const response = await apiClient.get(
+          API_CONFIG.ENDPOINTS.VENDORS.NEARBY_STORES,
+          { params: queryParams }
+        );
+
+        const stores = extractStoresFromResponse(response.data);
+        console.log('[Product Service] Gateway vendor stores response:', response.data);
+
+        if (stores.length > 0) {
+          return response.data;
+        }
+
+        console.warn('[Product Service] Gateway returned no vendor stores, trying vendor service fallback');
+      } catch (gatewayError: any) {
+        console.warn('[Product Service] Gateway vendor stores failed, trying vendor service fallback:', gatewayError.response?.data || gatewayError.message);
+      }
+
       const response = await axios.get(
-        `${vendorServiceUrl}/api/vendor/stores/nearby`,
+        `${VENDOR_SERVICE_URL}/api/vendor/stores/nearby`,
         { params: queryParams }
       );
-      console.log('✅ [Product Service] Vendor stores response:', response.data);
+      console.log('[Product Service] Direct vendor stores response:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('❌ [Product Service] Vendor stores failed:', error.response?.data || error.message);
+      console.error('[Product Service] Vendor stores failed:', error.response?.data || error.message);
       return { success: false, data: { stores: [] } };
     }
   }
-
   /**
    * Get printing pickup locations (customer-facing)
    * API: GET /api/products/printing/pickup-locations
    * Response: { success, data: [ { _id, name, address, location, workingHours, supportedFlows, distance } ] }
    */
-  async getPrintingPickupLocations(params?: {
-    lat?: number;
-    lng?: number;
-    radius?: number;
-    pincode?: string;
-    limit?: number;
-  }): Promise<any> {
+  async getPrintingPickupLocations(params?: StoreQueryParams): Promise<any> {
     try {
-      console.log('🚀 [Product Service] Fetching printing pickup locations:', params);
-      
-      // Build query params - only include defined values
-      const queryParams: any = {};
-      if (params?.lat !== undefined) queryParams.lat = params.lat;
-      if (params?.lng !== undefined) queryParams.lng = params.lng;
-      if (params?.radius !== undefined) queryParams.radius = params.radius;
-      if (params?.pincode) queryParams.pincode = params.pincode;
-      if (params?.limit !== undefined) queryParams.limit = params.limit;
-      
-      console.log('📤 Query params:', queryParams);
-      
+      console.log('[Product Service] Fetching printing pickup locations:', params);
+
+      const queryParams = cleanStoreQueryParams(params);
+      console.log('[Product Service] Printing pickup query params:', queryParams);
+
       const response = await apiClient.get(
         API_CONFIG.ENDPOINTS.PRODUCTS.PRINTING.PICKUP_LOCATIONS,
         { params: queryParams }
       );
-      console.log('✅ [Product Service] Printing pickup locations:', response.data);
+      console.log('[Product Service] Printing pickup locations:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('❌ [Product Service] Printing pickup locations failed:', error.response?.data || error.message);
+      console.error('[Product Service] Printing pickup locations failed:', error.response?.data || error.message);
       return { success: false, data: [] };
     }
   }
-
   /**
    * Get business printing products (backward compatibility)
    */

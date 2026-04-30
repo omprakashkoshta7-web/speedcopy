@@ -5,7 +5,7 @@ import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import walletService from '../services/wallet.service';
 import paymentService from '../services/payment.service';
-import productService from '../services/product.service';
+import productService, { extractStoresFromResponse, getStoreIdentifier } from '../services/product.service';
 import orderService from '../services/order.service';
 
 type PaymentMethod = 'card' | 'upi' | 'netbanking' | 'wallet';
@@ -41,39 +41,47 @@ const PrintCheckoutPage: React.FC = () => {
         
         // Fetch location details if locationId exists
         if (locationId) {
-          // Fetch store from API only — no mock/default data
+          const cachedLocation = sessionStorage.getItem(`pickup_location_${locationId}`);
+          if (cachedLocation) {
+            try {
+              const parsedLocation = JSON.parse(cachedLocation);
+              if (String(parsedLocation?.id || parsedLocation?._id) === locationId) {
+                setPickupLocation(parsedLocation);
+              }
+            } catch (error) {
+              console.warn('[PrintCheckout] Failed to parse cached pickup location:', error);
+            }
+          }
+
           try {
             const [vendorRes, printingRes] = await Promise.allSettled([
-              productService.getNearbyVendorStores({ limit: 50 }),
-              productService.getPrintingPickupLocations({ limit: 50 }),
+              productService.getNearbyVendorStores({ limit: 100 }),
+              productService.getPrintingPickupLocations({ limit: 100 }),
             ]);
 
             const allStores: any[] = [];
 
             if (vendorRes.status === 'fulfilled') {
-              const s = vendorRes.value?.data?.stores || vendorRes.value?.stores || [];
-              if (Array.isArray(s)) allStores.push(...s);
+              allStores.push(...extractStoresFromResponse(vendorRes.value));
             }
             if (printingRes.status === 'fulfilled') {
-              const s = printingRes.value?.data || [];
-              if (Array.isArray(s)) allStores.push(...s);
+              allStores.push(...extractStoresFromResponse(printingRes.value));
             }
 
             const foundStore = allStores.find(
-              (s: any) => String(s._id || s.id) === locationId
+              (store: any) => getStoreIdentifier(store) === locationId
             );
 
             if (foundStore) {
               setPickupLocation(foundStore);
-              console.log('✅ Store loaded from API:', foundStore);
+              console.log('[PrintCheckout] Store loaded from API:', foundStore);
             } else {
-              console.warn('⚠️ Store not found for locationId:', locationId);
+              console.warn('[PrintCheckout] Store not found for locationId:', locationId);
             }
           } catch (error) {
-            console.error('❌ Failed to fetch store from API:', error);
+            console.error('[PrintCheckout] Failed to fetch store from API:', error);
           }
         }
-
         // Get print config from localStorage
         if (configId) {
           const savedConfig = localStorage.getItem(`printConfig_${configId}`);
@@ -195,9 +203,9 @@ const PrintCheckoutPage: React.FC = () => {
             phone: pickupLocation.phone || '',
             line1: formatStoreAddress(pickupLocation.address),
             line2: '',
-            city: pickupLocation.address?.city || 'Mumbai',
-            state: pickupLocation.address?.state || 'Maharashtra',
-            pincode: pickupLocation.address?.pincode || '400001',
+            city: pickupLocation.city || pickupLocation.address?.city || 'Mumbai',
+            state: pickupLocation.state || pickupLocation.address?.state || 'Maharashtra',
+            pincode: pickupLocation.pincode || pickupLocation.pinCode || pickupLocation.address?.pincode || '400001',
             country: 'India',
           } : {
             fullName: 'Pickup Location',

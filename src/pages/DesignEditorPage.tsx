@@ -1560,54 +1560,54 @@ const DesignEditorPage: React.FC = () => {
       <div className="mx-auto flex max-w-[1520px] gap-0 px-0 py-0 flex-1 min-w-0 overflow-hidden">
         {renderLeftRail()}
 
-        <aside className="w-[290px] shrink-0 border-r border-gray-200 bg-[#fffdfa] px-5 py-5">
+        <aside className="w-[260px] shrink-0 border-r border-gray-200 bg-[#fffdfa] px-4 py-4 overflow-y-auto">
           {renderSidePanel()}
         </aside>
 
-        <main className="min-w-0 flex-1 bg-[#f4f4f2] px-5 py-5">
-          <div className="rounded-[30px] bg-white/70 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)]">
-            <div className="mb-3 flex items-center justify-between text-xs text-slate-400">
+        <main className="min-w-0 flex-1 bg-[#f4f4f2] px-4 py-4 flex flex-col">
+          <div className="rounded-[24px] bg-white/70 p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)] flex-1 flex flex-col">
+            <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
               <span>{activePage?.name || 'Page'}</span>
               <span>{zoom}%</span>
             </div>
 
-            <div className="overflow-auto rounded-[26px] border border-[#eceae6] bg-[#efefed] p-5 max-h-[calc(100vh-280px)] flex items-start justify-center relative group">
-              {/* Canvas is visible but scaled down to look like thumbnail */}
+            <div className="overflow-auto rounded-[20px] border border-[#eceae6] bg-[#efefed] p-4 flex-1 flex items-center justify-center relative group">
+              {/* Canvas centered and properly scaled */}
               <div
-                className="origin-top transition-transform duration-200"
+                className="origin-center transition-transform duration-200"
                 style={{ transform: `scale(${zoom / 100})` }}
               >
-                <canvas ref={canvasRef} className="block" />
+                <canvas ref={canvasRef} className="block shadow-lg" />
               </div>
               {/* Overlay hint */}
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg bg-black/20 pointer-events-none">
-                <span className="text-white text-xs font-semibold">Add photos from left panel</span>
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg bg-black/10 pointer-events-none">
+                <span className="text-white text-xs font-semibold bg-black/50 px-3 py-1.5 rounded-full">Add photos from left panel</span>
               </div>
             </div>
           </div>
         </main>
 
-        <aside className="w-[248px] shrink-0 border-l border-gray-200 bg-white px-4 py-5">
-          <div className="rounded-[24px] border border-gray-100 bg-[#fafafa] p-4 shadow-[0_16px_32px_rgba(15,23,42,0.04)]">
-            <div className="flex items-center gap-2">
-              <Palette size={16} className="text-[#ff6a3d]" />
-              <h3 className="text-sm font-semibold text-slate-900">Object controls</h3>
+        <aside className="w-[220px] shrink-0 border-l border-gray-200 bg-white px-3 py-4 overflow-y-auto">
+          <div className="rounded-[20px] border border-gray-100 bg-[#fafafa] p-3 shadow-[0_12px_24px_rgba(15,23,42,0.04)]">
+            <div className="flex items-center gap-2 mb-3">
+              <Palette size={14} className="text-[#ff6a3d]" />
+              <h3 className="text-xs font-semibold text-slate-900">Object controls</h3>
             </div>
-            <div className="mt-4 space-y-3">
-              <div className="rounded-2xl bg-white px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">Selection</div>
-                <div className="mt-1 text-sm font-medium text-slate-800">{selectedObjectType || 'No layer selected'}</div>
+            <div className="space-y-2">
+              <div className="rounded-xl bg-white px-3 py-2">
+                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Selection</div>
+                <div className="mt-1 text-xs font-medium text-slate-800">{selectedObjectType || 'No layer selected'}</div>
               </div>
               
               {/* Image Adjustment Controls */}
               {selectedObjectType === 'image' && (
-                <div className="rounded-2xl bg-white px-4 py-3 border border-orange-200">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-orange-600 mb-3">Image Adjustments</div>
+                <div className="rounded-xl bg-white px-3 py-2 border border-orange-200">
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-orange-600 mb-2">Image Adjustments</div>
                   
                   {/* Scale Controls */}
-                  <div className="mb-3">
-                    <div className="text-xs text-slate-600 mb-2">Scale</div>
-                    <div className="flex items-center gap-2">
+                  <div className="mb-2">
+                    <div className="text-xs text-slate-600 mb-1.5">Scale</div>
+                    <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => {
                           const obj = canvas?.getActiveObject();
@@ -1618,9 +1618,9 @@ const DesignEditorPage: React.FC = () => {
                             saveCanvasSnapshot(canvas);
                           }
                         }}
-                        className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium hover:bg-gray-200"
+                        className="flex-1 rounded-lg bg-gray-100 px-2 py-1.5 text-xs font-medium hover:bg-gray-200"
                       >
-                        <Minus size={12} className="inline" /> Smaller
+                        <Minus size={10} className="inline" /> Smaller
                       </button>
                       <button
                         onClick={() => {
@@ -1632,9 +1632,9 @@ const DesignEditorPage: React.FC = () => {
                             saveCanvasSnapshot(canvas);
                           }
                         }}
-                        className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium hover:bg-gray-200"
+                        className="flex-1 rounded-lg bg-gray-100 px-2 py-1.5 text-xs font-medium hover:bg-gray-200"
                       >
-                        <Plus size={12} className="inline" /> Larger
+                        <Plus size={10} className="inline" /> Larger
                       </button>
                     </div>
                   </div>
@@ -1659,33 +1659,33 @@ const DesignEditorPage: React.FC = () => {
                         saveCanvasSnapshot(canvas);
                       }
                     }}
-                    className="w-full rounded-lg bg-orange-100 px-3 py-2 text-xs font-medium text-orange-700 hover:bg-orange-200"
+                    className="w-full rounded-lg bg-orange-100 px-2 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-200"
                   >
                     Fit to Frame
                   </button>
                 </div>
               )}
               
-              <button onClick={bringToFront} className="w-full rounded-2xl bg-gray-100 px-4 py-3 text-sm font-medium text-slate-700">
+              <button onClick={bringToFront} className="w-full rounded-xl bg-gray-100 px-3 py-2 text-xs font-medium text-slate-700">
                 Bring to Front
               </button>
-              <button onClick={sendToBack} className="w-full rounded-2xl bg-gray-100 px-4 py-3 text-sm font-medium text-slate-700">
+              <button onClick={sendToBack} className="w-full rounded-xl bg-gray-100 px-3 py-2 text-xs font-medium text-slate-700">
                 Send to Back
               </button>
-              <button onClick={deleteSelected} className="w-full rounded-2xl bg-[#fff1ed] px-4 py-3 text-sm font-medium text-[#ff6a3d]">
-                <Trash2 size={14} className="inline mr-2" />
+              <button onClick={deleteSelected} className="w-full rounded-xl bg-[#fff1ed] px-3 py-2 text-xs font-medium text-[#ff6a3d]">
+                <Trash2 size={12} className="inline mr-1" />
                 Delete Selected
               </button>
-              <button onClick={clearCanvas} className="w-full rounded-2xl bg-gray-100 px-4 py-3 text-sm font-medium text-slate-700">
+              <button onClick={clearCanvas} className="w-full rounded-xl bg-gray-100 px-3 py-2 text-xs font-medium text-slate-700">
                 Clear Page
               </button>
               {/* Download button removed - users must purchase to download */}
-              <button onClick={exportPrintReady} className="w-full rounded-2xl bg-[#ff6a3d] px-4 py-3 text-sm font-semibold text-white">
-                <Download size={14} className="inline mr-2" />
+              <button onClick={exportPrintReady} className="w-full rounded-xl bg-[#ff6a3d] px-3 py-2 text-xs font-semibold text-white">
+                <Download size={12} className="inline mr-1" />
                 Print Ready (JPG)
               </button>
-              <button onClick={exportPDF} className="w-full rounded-2xl bg-[#2d5a3d] px-4 py-3 text-sm font-semibold text-white">
-                <Download size={14} className="inline mr-2" />
+              <button onClick={exportPDF} className="w-full rounded-xl bg-[#2d5a3d] px-3 py-2 text-xs font-semibold text-white">
+                <Download size={12} className="inline mr-1" />
                 Export PDF
               </button>
             </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import productService from '../services/product.service';
+import productService, { extractStoresFromResponse, getStoreIdentifier, type StoreQueryParams } from '../services/product.service';
 
 type DeliveryType = 'Pickup' | 'Delivery';
 type Filter = 'All Centers' | 'Open Now' | 'Color Printing' | 'Binding Services' | '24/7 Access';
@@ -26,58 +26,92 @@ const statusColor: Record<string, string> = {
   open247: '#16a34a',
 };
 
-const mapVendorStoreToLocation = (store: any): PickupLocation => {
-  console.log('🗺️ Mapping store:', store);
-  
-  // Backend returns: _id, name, address, city, state, pincode, phone, email, working_hours, is_active, location, distance_km
-  
-  // Distance from backend (already in km)
-  const distanceKm = typeof store?.distance_km === 'number' ? store.distance_km : 
-                     typeof store?.distance === 'number' ? store.distance : null;
+const isFalseLike = (value: any) =>
+  value === false || value === 0 || String(value).toLowerCase() === 'false';
 
-  // Status based on is_active flag - SHOW ALL STORES REGARDLESS OF APPROVAL STATUS
-  // Even if store is pending approval, show it to users
-  const isActive = store?.is_active !== false && store?.isActive !== false;
-  const isPendingApproval = store?.approval_status === 'pending' || store?.approvalStatus === 'pending';
-  
-  // Show store as open even if pending approval (users can still see it)
-  const status: 'open' | 'closed' | 'open247' = isActive ? 'open' : 'closed';
-  const statusLabel = isPendingApproval 
-    ? 'PENDING APPROVAL' 
-    : isActive 
-      ? (store?.working_hours || store?.workingHours || 'OPEN NOW') 
-      : 'CLOSED';
-
-  // Amenities - default for all shops
-  const amenities: string[] = ['print', 'wifi', 'parking'];
-
-  // Format address - handle multiple formats
-  let formattedAddress = 'Address not available';
-  if (store?.address) {
-    if (store.city && store.state && store.pincode) {
-      formattedAddress = `${store.address}, ${store.city}, ${store.state} - ${store.pincode}`;
-    } else {
-      formattedAddress = store.address;
-    }
+const isStoreVisible = (store: any) => {
+  if (isFalseLike(store?.is_active) || isFalseLike(store?.isActive) || isFalseLike(store?.active)) {
+    return false;
   }
 
-  const mapped: PickupLocation = {
-    id: String(store?._id || store?.id || Date.now()),
-    name: store?.name || 'SpeedCopy Hub',
-    address: formattedAddress,
-    distance: distanceKm !== null ? `${distanceKm.toFixed(1)} km` : 'Nearby',
-    rating: 4.8, // Default rating
-    reviews: 0,
-    status,
-    statusLabel,
-    amenities,
-    icon: 'store',
-  };
-  
-  console.log('✅ Mapped location:', mapped);
-  return mapped;
+  const status = String(store?.status || store?.storeStatus || '').toLowerCase();
+  return !['inactive', 'disabled', 'deleted'].includes(status);
 };
 
+const formatVendorAddress = (store: any) => {
+  const address = store?.address || store?.storeAddress || store?.pickupAddress;
+  const city = store?.city || address?.city;
+  const state = store?.state || address?.state;
+  const pincode = store?.pincode || store?.pinCode || store?.zipcode || address?.pincode || address?.pinCode;
+
+  if (typeof address === 'string' && address.trim()) {
+    const parts = [address.trim()];
+    if (city && !address.toLowerCase().includes(String(city).toLowerCase())) parts.push(String(city));
+    if (state && !address.toLowerCase().includes(String(state).toLowerCase())) parts.push(String(state));
+    const line = parts.join(', ');
+    return pincode && !line.includes(String(pincode)) ? `${line} - ${pincode}` : line;
+  }
+
+  if (address && typeof address === 'object') {
+    const parts = [
+      address.line1,
+      address.line2,
+      address.street,
+      address.area,
+      address.locality,
+      city,
+      state,
+    ]
+      .filter(Boolean)
+      .map((part) => String(part).trim())
+      .filter(Boolean);
+
+    const line = [...new Set(parts)].join(', ');
+    if (line) return pincode ? `${line} - ${pincode}` : line;
+  }
+
+  const fallbackParts = [city, state].filter(Boolean).map((part) => String(part).trim());
+  if (fallbackParts.length > 0) {
+    const line = fallbackParts.join(', ');
+    return pincode ? `${line} - ${pincode}` : line;
+  }
+
+  return 'Address not available';
+};
+
+const formatDistance = (store: any) => {
+  const distance = store?.distance_km ?? store?.distanceKm ?? store?.distance;
+  if (typeof distance === 'number') return `${distance.toFixed(1)} km`;
+  if (typeof distance === 'string' && distance.trim()) {
+    return distance.toLowerCase().includes('km') ? distance : `${distance} km`;
+  }
+  return 'Nearby';
+};
+
+const mapVendorStoreToLocation = (store: any): PickupLocation => {
+  const isActive = isStoreVisible(store);
+  const approvalStatus = String(store?.approval_status || store?.approvalStatus || '').toLowerCase();
+  const isPendingApproval = approvalStatus === 'pending';
+  const workingHours = store?.working_hours || store?.workingHours || store?.hours || 'OPEN NOW';
+  const status: 'open' | 'closed' | 'open247' = !isActive
+    ? 'closed'
+    : String(workingHours).includes('24')
+      ? 'open247'
+      : 'open';
+
+  return {
+    id: getStoreIdentifier(store) || `store-${Date.now()}`,
+    name: store?.name || store?.storeName || store?.shopName || store?.businessName || 'SpeedCopy Hub',
+    address: formatVendorAddress(store),
+    distance: formatDistance(store),
+    rating: Number(store?.rating || store?.averageRating) || 4.8,
+    reviews: Number(store?.reviews || store?.reviewCount) || 0,
+    status,
+    statusLabel: isPendingApproval ? 'PENDING APPROVAL' : status === 'closed' ? 'CLOSED' : String(workingHours),
+    amenities: Array.isArray(store?.amenities) && store.amenities.length ? store.amenities : ['print', 'wifi', 'parking'],
+    icon: 'store',
+  };
+};
 const getCurrentPosition = () =>
   new Promise<{ lat: number; lng: number }>((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -155,282 +189,88 @@ const PickupLocationPage: React.FC = () => {
   const configId = searchParams.get('configId') || '';
   const printType = searchParams.get('type') || '';
 
-  const loadStores = async (params?: {
-    lat?: number;
-    lng?: number;
-    radius?: number;
-    limit?: number;
-    pincode?: string;
-  }) => {
-    console.log('🔄 loadStores called with params:', params);
-    
-    // Clean params - only include defined values
-    const cleanParams: any = {};
-    if (params?.lat !== undefined) cleanParams.lat = params.lat;
-    if (params?.lng !== undefined) cleanParams.lng = params.lng;
-    if (params?.radius !== undefined) cleanParams.radius = params.radius;
-    if (params?.limit !== undefined) cleanParams.limit = params.limit;
-    if (params?.pincode) cleanParams.pincode = params.pincode;
-    
-    console.log('🧹 Cleaned params:', cleanParams);
-    
-    // Try both APIs in parallel and merge results
+  const loadStores = async (params?: StoreQueryParams) => {
+    console.log('[PickupLocation] Loading stores with params:', params);
+
     const [vendorRes, printingRes] = await Promise.allSettled([
-      productService.getNearbyVendorStores(cleanParams),
-      productService.getPrintingPickupLocations(cleanParams),
+      productService.getNearbyVendorStores(params),
+      productService.getPrintingPickupLocations(params),
     ]);
 
     const allStores: any[] = [];
 
-    // Parse vendor stores: { success, data: { stores: [...] } }
     if (vendorRes.status === 'fulfilled') {
-      const res = vendorRes.value;
-      console.log('📦 Vendor API RAW response:', res);
-      console.log('📦 Vendor API response type:', typeof res);
-      console.log('📦 Vendor API response keys:', res ? Object.keys(res) : 'null');
-      
-      // CRITICAL FIX: Try ALL possible extraction paths
-      let stores = [];
-      
-      // Path 1: res.data.stores (most common)
-      if (res?.data?.stores && Array.isArray(res.data.stores)) {
-        stores = res.data.stores;
-        console.log('✅ Extracted from res.data.stores:', stores.length);
-      }
-      // Path 2: res.data.data.stores (nested data)
-      else if (res?.data?.data?.stores && Array.isArray(res.data.data.stores)) {
-        stores = res.data.data.stores;
-        console.log('✅ Extracted from res.data.data.stores:', stores.length);
-      }
-      // Path 3: res.stores
-      else if (res?.stores && Array.isArray(res.stores)) {
-        stores = res.stores;
-        console.log('✅ Extracted from res.stores:', stores.length);
-      }
-      // Path 4: res.data (if it's an array)
-      else if (res?.data && Array.isArray(res.data)) {
-        stores = res.data;
-        console.log('✅ Extracted from res.data:', stores.length);
-      }
-      // Path 5: res itself (if it's an array)
-      else if (Array.isArray(res)) {
-        stores = res;
-        console.log('✅ Extracted from res:', stores.length);
-      }
-      
-      // CRITICAL: Filter out stores that are pending approval ONLY if they don't have is_active flag
-      // Show ALL stores regardless of approval status if they are marked as active
-      const activeStores = stores.filter((store: any) => {
-        // If store has is_active flag, respect it
-        if (store.hasOwnProperty('is_active') || store.hasOwnProperty('isActive')) {
-          const isActive = store.is_active !== false && store.isActive !== false;
-          if (!isActive) {
-            console.log('⚠️ Skipping inactive store:', store.name);
-            return false;
-          }
-        }
-        
-        // SHOW ALL STORES - even if pending approval
-        // The approval status is just for display, not for filtering
-        return true;
-      });
-      
-      if (activeStores.length > 0) {
-        console.log('📦 Active vendor stores:', activeStores.length);
-        console.log('📦 First vendor store sample:', activeStores[0]);
-        allStores.push(...activeStores);
-      } else {
-        console.warn('⚠️ No active vendor stores found in response');
-        console.warn('⚠️ Total stores in response:', stores.length);
-        if (stores.length > 0) {
-          console.warn('⚠️ First store (inactive):', stores[0]);
-        }
-      }
+      const vendorStores = extractStoresFromResponse(vendorRes.value).filter(isStoreVisible);
+      console.log('[PickupLocation] Vendor stores found:', vendorStores.length);
+      allStores.push(...vendorStores);
     } else {
-      console.error('❌ Vendor API failed:', vendorRes.reason);
+      console.error('[PickupLocation] Vendor API failed:', vendorRes.reason);
     }
 
-    // Parse printing pickup locations: { success, data: [...] }
     if (printingRes.status === 'fulfilled') {
-      const res = printingRes.value;
-      console.log('🖨️ Printing API RAW response:', res);
-      console.log('🖨️ Printing API response type:', typeof res);
-      console.log('🖨️ Printing API response keys:', res ? Object.keys(res) : 'null');
-      
-      // Try multiple extraction paths
-      let stores = [];
-      
-      // Path 1: res.data (if it's an array)
-      if (res?.data && Array.isArray(res.data)) {
-        stores = res.data;
-        console.log('✅ Extracted from res.data:', stores.length);
-      }
-      // Path 2: res.data.data (nested)
-      else if (res?.data?.data && Array.isArray(res.data.data)) {
-        stores = res.data.data;
-        console.log('✅ Extracted from res.data.data:', stores.length);
-      }
-      // Path 3: res.stores
-      else if (res?.stores && Array.isArray(res.stores)) {
-        stores = res.stores;
-        console.log('✅ Extracted from res.stores:', stores.length);
-      }
-      // Path 4: res itself (if it's an array)
-      else if (Array.isArray(res)) {
-        stores = res;
-        console.log('✅ Extracted from res:', stores.length);
-      }
-      
-      if (stores.length > 0) {
-        console.log('🖨️ First printing store sample:', stores[0]);
-        allStores.push(...stores);
-      } else {
-        console.warn('⚠️ No printing stores found in response');
-      }
+      const printingStores = extractStoresFromResponse(printingRes.value).filter(isStoreVisible);
+      console.log('[PickupLocation] Printing pickup stores found:', printingStores.length);
+      allStores.push(...printingStores);
     } else {
-      console.error('❌ Printing API failed:', printingRes.reason);
+      console.error('[PickupLocation] Printing pickup API failed:', printingRes.reason);
     }
 
-    console.log('📦 Total stores before deduplication:', allStores.length);
-
-    // Deduplicate by _id or id
     const seen = new Set<string>();
     const uniqueStores: any[] = [];
+
     for (const store of allStores) {
-      const id = String(store._id || store.id || '');
-      if (!id) {
-        console.warn('⚠️ Store without ID:', store);
-        uniqueStores.push(store); // Include stores without ID
-        continue;
-      }
-      if (seen.has(id)) {
-        console.log('🔄 Duplicate store skipped:', id);
-        continue;
-      }
-      seen.add(id);
+      const id = getStoreIdentifier(store);
+      if (id && seen.has(id)) continue;
+      if (id) seen.add(id);
       uniqueStores.push(store);
     }
 
-    console.log('🔀 Unique stores after deduplication:', uniqueStores.length);
-    
-    if (uniqueStores.length > 0) {
-      console.log('📍 Sample store before mapping:', uniqueStores[0]);
-    }
-    
-    const mappedStores = uniqueStores.map(mapVendorStoreToLocation);
-    console.log('✅ Final mapped stores:', mappedStores.length);
-    
-    if (mappedStores.length > 0) {
-      console.log('📍 First mapped store:', mappedStores[0]);
-    }
-    
-    return mappedStores;
+    console.log('[PickupLocation] Unique stores after merge:', uniqueStores.length);
+    return uniqueStores.map(mapVendorStoreToLocation);
   };
-
   useEffect(() => {
     fetchLocations();
   }, []);
 
-  // Fetch locations with fallback to demo stores
+  // Fetch nearby stores first, then fall back to all vendor stores.
   const fetchLocations = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Fetching pickup locations...');
+      console.log('[PickupLocation] Fetching pickup locations');
 
-      // Try user GPS first
-      let geoParams: any = { limit: 50 };
+      let queryParams: StoreQueryParams = { limit: 50 };
+      let usedLocationFilter = false;
+
       try {
         const pos = await getCurrentPosition();
-        geoParams = { lat: pos.lat, lng: pos.lng, radius: 50, limit: 50 };
-        console.log('✅ User location:', geoParams);
+        queryParams = { lat: pos.lat, lng: pos.lng, radius: 50, limit: 50 };
+        usedLocationFilter = true;
+        console.log('[PickupLocation] User location detected:', queryParams);
       } catch {
-        console.log('⚠️ Location not available, fetching all stores');
+        console.log('[PickupLocation] Location unavailable, loading all vendor stores');
       }
 
-      const apiStores = await loadStores(geoParams);
-      console.log('✅ API stores returned:', apiStores.length);
-      
-      if (apiStores.length === 0) {
-        console.warn('⚠️ No stores found from API - Using demo stores');
-        console.warn('🔍 Backend API issues detected. Using fallback demo data.');
-        
-        // Demo stores for testing
-        const demoStores: PickupLocation[] = [
-          {
-            id: 'demo-1',
-            name: 'SpeedCopy Hub - Connaught Place',
-            address: 'Shop 123, Block A, Connaught Place, New Delhi - 110001',
-            distance: '2.5 km',
-            rating: 4.8,
-            reviews: 156,
-            status: 'open',
-            statusLabel: 'OPEN NOW',
-            amenities: ['print', 'wifi', 'parking'],
-            icon: 'store',
-          },
-          {
-            id: 'demo-2',
-            name: 'SpeedCopy Hub - Karol Bagh',
-            address: 'Shop 45, Main Market, Karol Bagh, New Delhi - 110005',
-            distance: '4.2 km',
-            rating: 4.7,
-            reviews: 89,
-            status: 'open',
-            statusLabel: 'OPEN NOW',
-            amenities: ['print', 'wifi', 'parking'],
-            icon: 'store',
-          },
-          {
-            id: 'demo-3',
-            name: 'SpeedCopy Hub - Lajpat Nagar',
-            address: 'Shop 78, Central Market, Lajpat Nagar, New Delhi - 110024',
-            distance: '5.8 km',
-            rating: 4.9,
-            reviews: 234,
-            status: 'open',
-            statusLabel: 'OPEN NOW',
-            amenities: ['print', 'wifi', 'parking'],
-            icon: 'store',
-          },
-          {
-            id: 'demo-4',
-            name: 'SpeedCopy Hub - Nehru Place',
-            address: 'Shop 12, Nehru Place Market, New Delhi - 110019',
-            distance: '6.5 km',
-            rating: 4.6,
-            reviews: 67,
-            status: 'open',
-            statusLabel: 'OPEN NOW',
-            amenities: ['print', 'wifi', 'parking'],
-            icon: 'store',
-          },
-          {
-            id: 'demo-5',
-            name: 'SpeedCopy Hub - Saket',
-            address: 'Shop 56, Saket District Centre, New Delhi - 110017',
-            distance: '8.3 km',
-            rating: 4.8,
-            reviews: 145,
-            status: 'open',
-            statusLabel: 'OPEN NOW',
-            amenities: ['print', 'wifi', 'parking'],
-            icon: 'store',
-          },
-        ];
-        
-        setLocations(demoStores);
-      } else {
-        setLocations(apiStores);
+      let apiStores = await loadStores(queryParams);
+
+      if (apiStores.length === 0 && usedLocationFilter) {
+        console.warn('[PickupLocation] No nearby stores found, retrying all vendor stores');
+        apiStores = await loadStores({ limit: 50 });
       }
+
+      setLocations(apiStores);
     } catch (error) {
-      console.error('❌ fetchLocations error:', error);
+      console.error('[PickupLocation] Failed to fetch pickup locations:', error);
       setLocations([]);
     } finally {
       setLoading(false);
     }
   };
-
   const handleSelectCenter = (locationId: string) => {
+    const selectedLocation = locations.find((location) => location.id === locationId);
+    if (selectedLocation) {
+      sessionStorage.setItem(`pickup_location_${locationId}`, JSON.stringify(selectedLocation));
+    }
+
     // Navigate directly to print checkout page with Razorpay payment
     navigate(`/print-checkout?configId=${configId}&type=${printType}&locationId=${locationId}&delivery=pickup`);
   };
@@ -441,62 +281,36 @@ const PickupLocationPage: React.FC = () => {
       setZipError('Please enter a valid zip/pin code');
       return;
     }
+
     try {
       setZipSearching(true);
       setZipError('');
-      
-      // Search by pincode using the vendor stores API
-      const mappedStores = await loadStores({
+
+      let mappedStores = await loadStores({
         pincode: zip,
         radius: 50,
-        limit: 50
+        limit: 50,
       });
+
+      if (mappedStores.length === 0) {
+        console.warn('[PickupLocation] No stores found for pincode, loading all vendor stores');
+        mappedStores = await loadStores({ limit: 50 });
+      }
 
       if (mappedStores.length > 0) {
         setLocations(mappedStores);
         setShowNearMePopup(false);
         setZipInput('');
       } else {
-        // If API fails, show demo stores for the pincode
-        console.warn('⚠️ API returned no stores, showing demo stores for pincode:', zip);
-        const demoStores: PickupLocation[] = [
-          {
-            id: `demo-${zip}-1`,
-            name: `SpeedCopy Hub - ${zip}`,
-            address: `Shop 123, Main Market, Pincode ${zip}`,
-            distance: '1.5 km',
-            rating: 4.8,
-            reviews: 120,
-            status: 'open',
-            statusLabel: 'OPEN NOW',
-            amenities: ['print', 'wifi', 'parking'],
-            icon: 'store',
-          },
-          {
-            id: `demo-${zip}-2`,
-            name: `SpeedCopy Express - ${zip}`,
-            address: `Shop 45, Central Market, Pincode ${zip}`,
-            distance: '3.2 km',
-            rating: 4.7,
-            reviews: 85,
-            status: 'open',
-            statusLabel: 'OPEN NOW',
-            amenities: ['print', 'wifi', 'parking'],
-            icon: 'store',
-          },
-        ];
-        setLocations(demoStores);
-        setShowNearMePopup(false);
-        setZipInput('');
+        setZipError('No pickup stores found yet. Please try another pincode later.');
       }
     } catch (error) {
-      console.error('Pincode search error:', error);
+      console.error('[PickupLocation] Pincode search error:', error);
       setZipError('Failed to search. Please try again.');
     } finally {
       setZipSearching(false);
     }
   };
-
   const handleNearMeClick = async () => {
     // Always show popup for better user experience
     setShowNearMePopup(true);
@@ -518,77 +332,38 @@ const PickupLocationPage: React.FC = () => {
 
   const handleUseCurrentLocation = async () => {
     if (!currentLocation) return;
-    
+
     try {
       setZipSearching(true);
       setZipError('');
-      
-      console.log('🔍 Searching for stores near location:', currentLocation);
-      
-      const mappedStores = await loadStores({
+
+      console.log('[PickupLocation] Searching stores near location:', currentLocation);
+
+      let mappedStores = await loadStores({
         lat: currentLocation.lat,
         lng: currentLocation.lng,
         radius: 50,
-        limit: 50
+        limit: 50,
       });
 
-      console.log('✅ Stores found:', mappedStores.length, mappedStores);
+      if (mappedStores.length === 0) {
+        console.warn('[PickupLocation] No nearby stores found, loading all vendor stores');
+        mappedStores = await loadStores({ limit: 50 });
+      }
 
       if (mappedStores.length > 0) {
         setLocations(mappedStores);
         setShowNearMePopup(false);
       } else {
-        // If API fails, show demo stores near location
-        console.warn('⚠️ API returned no stores, showing demo stores near location');
-        const demoStores: PickupLocation[] = [
-          {
-            id: 'nearby-demo-1',
-            name: 'SpeedCopy Hub - Nearby',
-            address: 'Shop 123, Near Your Location',
-            distance: '0.8 km',
-            rating: 4.9,
-            reviews: 200,
-            status: 'open',
-            statusLabel: 'OPEN NOW',
-            amenities: ['print', 'wifi', 'parking'],
-            icon: 'store',
-          },
-          {
-            id: 'nearby-demo-2',
-            name: 'SpeedCopy Express - Nearby',
-            address: 'Shop 45, Close to You',
-            distance: '1.5 km',
-            rating: 4.8,
-            reviews: 150,
-            status: 'open',
-            statusLabel: 'OPEN NOW',
-            amenities: ['print', 'wifi', 'parking'],
-            icon: 'store',
-          },
-          {
-            id: 'nearby-demo-3',
-            name: 'SpeedCopy Center - Nearby',
-            address: 'Shop 78, Around the Corner',
-            distance: '2.3 km',
-            rating: 4.7,
-            reviews: 95,
-            status: 'open',
-            statusLabel: 'OPEN NOW',
-            amenities: ['print', 'wifi', 'parking'],
-            icon: 'store',
-          },
-        ];
-        setLocations(demoStores);
-        setShowNearMePopup(false);
+        setZipError('No pickup stores found near your location yet. Please try a pincode.');
       }
     } catch (error) {
-      console.error('❌ Location search error:', error);
+      console.error('[PickupLocation] Location search error:', error);
       setZipError('Failed to search near your location. Please try entering a pincode.');
     } finally {
       setZipSearching(false);
     }
   };
-
   const filtered = locations.filter(l => {
     const matchSearch = !search || l.name.toLowerCase().includes(search.toLowerCase()) || l.address.toLowerCase().includes(search.toLowerCase());
     const matchFilter =
@@ -674,12 +449,12 @@ const PickupLocationPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                 </svg>
               </div>
-              <p className="text-gray-700 font-semibold mb-2">Stores pending approval</p>
+              <p className="text-gray-700 font-semibold mb-2">No pickup stores found</p>
               <p className="text-sm text-gray-400 mb-1 max-w-xs mx-auto">
-                Vendor stores are registered but awaiting admin approval before they appear here.
+                We could not find active vendor pickup stores for this search.
               </p>
               <p className="text-xs text-gray-400 mb-5 max-w-xs mx-auto">
-                Please contact <span className="font-medium text-gray-600">support@speedcopy.in</span> to approve your vendor account.
+                Try another pincode or use current location to search again.
               </p>
               <button
                 onClick={handleNearMeClick}

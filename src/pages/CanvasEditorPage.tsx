@@ -255,36 +255,36 @@ const CanvasEditorPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
+      {/* Header - Compact */}
       <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => navigate(-1)}
               className="p-2 hover:bg-gray-100 rounded-lg transition"
             >
-              <ArrowLeft size={20} className="text-slate-600" />
+              <ArrowLeft size={18} className="text-slate-600" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Canvas Editor</h1>
-              <p className="text-sm text-slate-500">{product?.name}</p>
+              <h1 className="text-lg font-bold text-slate-900">Canvas Editor</h1>
+              <p className="text-xs text-slate-500">{product?.name}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-2 py-1.5">
               <button
                 onClick={() => setZoom((prev) => Math.max(50, prev - 10))}
                 className="p-1 hover:bg-white rounded transition"
               >
-                <Minus size={16} />
+                <Minus size={14} />
               </button>
-              <span className="text-sm font-semibold w-12 text-center">{zoom}%</span>
+              <span className="text-xs font-semibold w-10 text-center">{zoom}%</span>
               <button
                 onClick={() => setZoom((prev) => Math.min(150, prev + 10))}
                 className="p-1 hover:bg-white rounded transition"
               >
-                <Plus size={16} />
+                <Plus size={14} />
               </button>
             </div>
 
@@ -292,7 +292,7 @@ const CanvasEditorPage: React.FC = () => {
 
             <button
               onClick={addToCart}
-              className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3d] text-white rounded-lg hover:bg-[#f35c2c] transition font-semibold"
+              className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3d] text-white rounded-lg hover:bg-[#f35c2c] transition font-semibold text-sm"
             >
               Add to Cart
             </button>
@@ -300,20 +300,20 @@ const CanvasEditorPage: React.FC = () => {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left Panel - Tools */}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Left Panel - Tools - Compact */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
-              <h2 className="text-base font-bold text-slate-900">Tools</h2>
+            <div className="bg-white rounded-xl p-3 shadow-sm space-y-2">
+              <h2 className="text-sm font-bold text-slate-900">Tools</h2>
 
               {/* Upload */}
               <div>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#ff6a3d] text-white rounded-lg hover:bg-[#f35c2c] transition font-semibold text-sm"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#ff6a3d] text-white rounded-lg hover:bg-[#f35c2c] transition font-semibold text-xs"
                 >
-                  <Upload size={14} />
+                  <Upload size={12} />
                   Upload Photo
                 </button>
                 <input
@@ -329,26 +329,26 @@ const CanvasEditorPage: React.FC = () => {
               {/* Delete */}
               <button
                 onClick={deleteSelected}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition font-semibold text-sm"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition font-semibold text-xs"
               >
-                <Trash2 size={14} />
+                <Trash2 size={12} />
                 Delete Selected
               </button>
 
               {/* Quantity */}
-              <div className="border-t pt-3">
-                <label className="text-xs font-semibold text-slate-600 block mb-2">Quantity</label>
+              <div className="border-t pt-2">
+                <label className="text-xs font-semibold text-slate-600 block mb-1.5">Quantity</label>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                    className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 transition text-sm"
+                    className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 transition text-xs"
                   >
                     −
                   </button>
-                  <span className="flex-1 text-center font-semibold text-sm">{quantity}</span>
+                  <span className="flex-1 text-center font-semibold text-xs">{quantity}</span>
                   <button
                     onClick={() => setQuantity((prev) => prev + 1)}
-                    className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 transition text-sm"
+                    className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 transition text-xs"
                   >
                     +
                   </button>
@@ -356,16 +356,16 @@ const CanvasEditorPage: React.FC = () => {
               </div>
 
               {/* Price */}
-              <div className="border-t pt-3">
-                <p className="text-xs text-slate-600 mb-1">Price per unit</p>
-                <p className="text-xl font-bold text-[#ff6a3d]">₹{displayPrice.toFixed(2)}</p>
-                <p className="text-xs text-slate-600 mt-1">Total: ₹{(displayPrice * quantity).toFixed(2)}</p>
+              <div className="border-t pt-2">
+                <p className="text-xs text-slate-600 mb-0.5">Price per unit</p>
+                <p className="text-lg font-bold text-[#ff6a3d]">₹{displayPrice.toFixed(2)}</p>
+                <p className="text-xs text-slate-600 mt-0.5">Total: ₹{(displayPrice * quantity).toFixed(2)}</p>
               </div>
 
               {/* Uploaded Images */}
               {uploadedImages.length > 0 && (
-                <div className="border-t pt-3">
-                  <p className="text-xs font-semibold text-slate-600 mb-2">Uploaded ({uploadedImages.length})</p>
+                <div className="border-t pt-2">
+                  <p className="text-xs font-semibold text-slate-600 mb-1.5">Uploaded ({uploadedImages.length})</p>
                   <div className="grid grid-cols-2 gap-2">
                     {uploadedImages.map((img, idx) => (
                       <button
@@ -373,7 +373,7 @@ const CanvasEditorPage: React.FC = () => {
                         onClick={() => addImageToCanvas(img)}
                         className="rounded-lg overflow-hidden border-2 border-gray-200 hover:border-[#ff6a3d] transition"
                       >
-                        <img src={img} alt={`upload-${idx}`} className="w-full h-12 object-cover" />
+                        <img src={img} alt={`upload-${idx}`} className="w-full h-10 object-cover" />
                       </button>
                     ))}
                   </div>
@@ -382,10 +382,10 @@ const CanvasEditorPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Canvas Area */}
+          {/* Canvas Area - Compact */}
           <div className="lg:col-span-3">
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center justify-center bg-gray-50 rounded-xl p-4 overflow-auto" style={{ maxHeight: '600px' }}>
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-center bg-gray-50 rounded-xl p-3 overflow-auto" style={{ maxHeight: '500px' }}>
                 <div
                   style={{
                     transform: `scale(${zoom / 100})`,
@@ -396,7 +396,7 @@ const CanvasEditorPage: React.FC = () => {
                   <canvas ref={canvasRef} className="border-2 border-gray-300 rounded-lg" />
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mt-4 text-center">
+              <p className="text-xs text-slate-500 mt-3 text-center">
                 Click on photos in the left panel to add them to the canvas. Drag to move, resize handles to scale.
               </p>
             </div>

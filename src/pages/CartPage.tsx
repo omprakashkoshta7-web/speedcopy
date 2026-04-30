@@ -210,82 +210,76 @@ const CartPage: React.FC = () => {
         <h1 className="font-bold text-gray-900 mb-1" style={{ fontSize: '24px' }}>{pageTitle}</h1>
         <p className="text-sm mb-4" style={{ color: '#9ca3af' }}>You have {items.length} {items.length === 1 ? 'item' : 'items'} in your cart</p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-2">
             {items.map((item) => (
               <div
                 key={item.id}
-                className="bg-white rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3"
-                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)', border: '1px solid #e5e7eb' }}
+                className="bg-white rounded-xl p-3 flex items-center gap-3"
+                style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)', border: '1px solid #e5e7eb' }}
               >
-                <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
+                <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
                   <img src={item.image} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 </div>
 
-                <div className="flex-1 min-w-0 w-full">
-                  <p className="text-xs font-bold tracking-widest mb-1 uppercase" style={{ color: '#9ca3af' }}>{item.tag}</p>
-                  <p className="font-semibold text-gray-900 mb-1" style={{ fontSize: '15px' }}>{item.name}</p>
-                  <p className="text-xs mb-2" style={{ color: '#9ca3af' }}>
-                    {item.designPreview ? 'Design attached from editor' : item.desc}
-                  </p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold tracking-widest mb-0.5 uppercase" style={{ color: '#9ca3af' }}>{item.tag}</p>
+                  <p className="font-semibold text-gray-900 mb-1 truncate" style={{ fontSize: '14px' }}>{item.name}</p>
                   
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => void updateQty(item.id, -1)} 
-                        className="w-6 h-6 rounded flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition text-sm"
+                        className="w-6 h-6 rounded flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition text-xs"
                         style={{ border: '1px solid #e5e7eb' }}
                       >
                         −
                       </button>
-                      <span className="font-semibold text-gray-900 text-sm w-6 text-center">{item.qty}</span>
+                      <span className="font-semibold text-gray-900 text-xs w-5 text-center">{item.qty}</span>
                       <button 
                         onClick={() => void updateQty(item.id, 1)} 
-                        className="w-6 h-6 rounded flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition text-sm"
+                        className="w-6 h-6 rounded flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition text-xs"
                         style={{ border: '1px solid #e5e7eb' }}
                       >
                         +
                       </button>
                     </div>
                     
-                    <div className="flex sm:hidden flex-col items-end gap-0.5">
-                      {item.oldPrice && <p className="line-through text-xs" style={{ color: '#9ca3af' }}>₹{item.oldPrice.toFixed(2)}</p>}
-                      <p className="font-bold text-gray-900" style={{ fontSize: '15px' }}>₹{(item.price * item.qty).toFixed(2)}</p>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => void removeItem(item.id)} 
+                        className="hover:opacity-60 transition p-1"
+                        title="Remove item"
+                      >
+                        <svg className="w-4 h-4" style={{ color: '#9ca3af' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                      <div className="text-right">
+                        {item.oldPrice && <p className="line-through text-xs" style={{ color: '#9ca3af' }}>₹{item.oldPrice.toFixed(2)}</p>}
+                        <p className="font-bold text-gray-900" style={{ fontSize: '14px' }}>₹{(item.price * item.qty).toFixed(2)}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="hidden sm:flex flex-col items-end gap-2 flex-shrink-0">
-                  <button 
-                    onClick={() => void removeItem(item.id)} 
-                    className="hover:opacity-60 transition p-1"
-                    title="Remove item"
-                  >
-                    <svg className="w-4 h-4" style={{ color: '#9ca3af' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                  {item.oldPrice && <p className="line-through text-xs" style={{ color: '#9ca3af' }}>₹{item.oldPrice.toFixed(2)}</p>}
-                  <p className="font-bold text-gray-900" style={{ fontSize: '15px' }}>₹{(item.price * item.qty).toFixed(2)}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Order Summary Sidebar */}
+          {/* Order Summary Sidebar - Compact */}
           <div className="lg:col-span-1 space-y-2">
-            <div className="bg-white rounded-xl p-4 sm:p-5" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-              <h2 className="font-bold text-gray-900 mb-4" style={{ fontSize: '15px' }}>Order Summary</h2>
+            <div className="bg-white rounded-xl p-4" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <h2 className="font-bold text-gray-900 mb-3" style={{ fontSize: '14px' }}>Order Summary</h2>
               
-              <div className="space-y-2 mb-4 pb-4" style={{ borderBottom: '1px solid #e5e7eb' }}>
+              <div className="space-y-1.5 mb-3 pb-3" style={{ borderBottom: '1px solid #e5e7eb' }}>
                 <div className="flex justify-between items-center">
                   <span className="text-xs" style={{ color: '#9ca3af' }}>Subtotal</span>
                   <span className="text-sm font-semibold text-gray-900">₹{subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs" style={{ color: '#9ca3af' }}>Delivery</span>
-                  <span className="text-sm font-bold" style={{ color: '#16a34a' }}>FREE</span>
+                  <span className="text-xs font-bold" style={{ color: '#16a34a' }}>FREE</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs" style={{ color: '#9ca3af' }}>Taxes</span>
@@ -293,17 +287,17 @@ const CartPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <span className="font-bold text-gray-900 text-sm">Total</span>
                 <div className="text-right">
-                  <p className="font-bold text-gray-900" style={{ fontSize: '18px' }}>₹{total.toFixed(2)}</p>
+                  <p className="font-bold text-gray-900" style={{ fontSize: '16px' }}>₹{total.toFixed(2)}</p>
                   <p className="text-xs" style={{ color: '#9ca3af' }}>incl. taxes</p>
                 </div>
               </div>
 
               <button 
                 onClick={() => navigate('/checkout', { state: { flow: flowFilter } })} 
-                className="w-full py-2.5 text-white font-bold rounded-full hover:bg-gray-800 transition text-sm flex items-center justify-center gap-2"
+                className="w-full py-2 text-white font-bold rounded-full hover:bg-gray-800 transition text-sm flex items-center justify-center gap-2"
                 style={{ backgroundColor: '#111111' }}
               >
                 Checkout
@@ -313,8 +307,8 @@ const CartPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Promo Code */}
-            <div className="bg-white rounded-xl p-3" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            {/* Promo Code - Compact */}
+            <div className="bg-white rounded-xl p-3" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <p className="text-xs font-bold tracking-widest mb-2 uppercase" style={{ color: '#9ca3af' }}>Promo Code</p>
               <div className="flex items-center gap-2">
                 <input 
@@ -333,14 +327,13 @@ const CartPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Delivery Info */}
+            {/* Delivery Info - Compact */}
             <div className="flex items-start gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
               <svg className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#16a34a' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               <div>
                 <p className="font-bold text-gray-900 text-xs">Free shipping on orders over ₹50</p>
-                <p className="text-xs mt-0.5" style={{ color: '#4b5563' }}>Order within 3 hours for fast delivery</p>
               </div>
             </div>
           </div>

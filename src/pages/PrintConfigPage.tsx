@@ -124,13 +124,16 @@ const PrintConfigPage: React.FC = () => {
       total += baseRate * totalPages * copies * sideMultiplier;
     }
     
-    // Graph sheets cost (only if selected)
+    // Graph sheets cost - FIXED: Only add if user explicitly selected them (not automatically)
+    // Only add graph sheet cost if user has actually selected them
     if (linearSheets > 0 || semiLog > 0) {
       total += (linearSheets + semiLog) * pricingConfig.graphSheetPrice;
     }
     
-    // Cover page cost
-    total += pricingConfig.coverPagePrice[coverPage as keyof typeof pricingConfig.coverPagePrice] || 0;
+    // Cover page cost - only if binding is selected
+    if (bindingType && bindingType !== 'None') {
+      total += pricingConfig.coverPagePrice[coverPage as keyof typeof pricingConfig.coverPagePrice] || 0;
+    }
     
     // Processing fee
     total += pricingConfig.processingFee;
@@ -385,10 +388,23 @@ const PrintConfigPage: React.FC = () => {
                 </div>
                 <p className="font-bold text-gray-900 mb-1" style={{ fontSize: '15px' }}>Drag & drop more files</p>
                 <p className="text-xs mb-4" style={{ color: '#9ca3af' }}>or click to browse your computer</p>
-                <button onClick={handleBrowseClick} type="button"
-                  className="px-6 py-2.5 text-white font-bold rounded-full hover:bg-gray-700 transition text-sm" style={{ backgroundColor: '#111111' }}>
-                  Browse Files
-                </button>
+                <div className="flex gap-2 justify-center">
+                  <button onClick={handleBrowseClick} type="button"
+                    className="px-6 py-2.5 text-white font-bold rounded-full hover:bg-gray-700 transition text-sm" style={{ backgroundColor: '#111111' }}>
+                    Browse Files
+                  </button>
+                  <button 
+                    onClick={() => {
+                      // Navigate to canvas editor for document design
+                      navigate(`/canvas-editor?productId=${productId || 'document-print'}&type=document`);
+                    }}
+                    type="button"
+                    className="px-6 py-2.5 font-bold rounded-full hover:bg-orange-600 transition text-sm text-white" 
+                    style={{ backgroundColor: '#ff6a3d' }}
+                  >
+                    Design with Canvas Editor
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -435,17 +451,26 @@ const PrintConfigPage: React.FC = () => {
 
             {/* Counters */}
             <div className="bg-white rounded-2xl px-4 py-2" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              {[
-                { label: 'Number of copies', value: copies, onChange: setCopies },
-                { label: 'Linear Graph Sheets', value: linearSheets, onChange: setLinearSheets },
-                { label: 'Semi Log Graph sheets', value: semiLog, onChange: setSemiLog },
-              ].map((item, i, arr) => (
-                <div key={item.label} className="flex items-center justify-between py-3"
-                  style={{ borderBottom: i < arr.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
-                  <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                  <Counter value={item.value} onChange={item.onChange} />
+              <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
+                <span className="text-sm font-medium text-gray-700">Number of copies</span>
+                <Counter value={copies} onChange={setCopies} />
+              </div>
+              
+              {/* Graph Sheets - Optional Section */}
+              <div className="py-3">
+                <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Optional Add-ons</p>
+                <div className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <span className="text-sm font-medium text-gray-700">Linear Graph Sheets</span>
+                  <Counter value={linearSheets} onChange={setLinearSheets} />
                 </div>
-              ))}
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm font-medium text-gray-700">Semi Log Graph sheets</span>
+                  <Counter value={semiLog} onChange={setSemiLog} />
+                </div>
+                {(linearSheets > 0 || semiLog > 0) && (
+                  <p className="text-xs text-green-600 mt-2">✓ Graph sheets will be added to your order</p>
+                )}
+              </div>
             </div>
           </div>
 
