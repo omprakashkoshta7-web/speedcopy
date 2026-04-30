@@ -57,6 +57,20 @@ const AddressPage: React.FC = () => {
         return;
       }
 
+      // Validate pincode format
+      if (!/^\d{5,6}$/.test(formData.pincode.trim())) {
+        setModalError('Please enter a valid 5-6 digit pincode');
+        setSavingAddress(false);
+        return;
+      }
+
+      // Validate phone format
+      if (!/^\+?\d{10,15}$/.test(formData.phone.trim().replace(/\s/g, ''))) {
+        setModalError('Please enter a valid phone number');
+        setSavingAddress(false);
+        return;
+      }
+
       const formattedAddress = {
         label: formData.type as 'Home' | 'Office' | 'Other',
         fullName: formData.name.trim(),
@@ -72,6 +86,8 @@ const AddressPage: React.FC = () => {
         country: 'India',
         isDefault: formData.isDefault || false,
       };
+
+      console.log('Sending address data:', formattedAddress);
 
       if (editingAddress) {
         // Update existing address
@@ -96,10 +112,13 @@ const AddressPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to save address:', err);
+      console.error('Error response:', err.response?.data);
       
       // Better error messages
       if (err.response?.status === 401) {
         setModalError('Please login to save address');
+      } else if (err.response?.status === 422) {
+        setModalError(err.response?.data?.message || 'Validation failed. Please check all fields.');
       } else if (err.response?.status === 400) {
         setModalError(err.response?.data?.message || 'Invalid address data. Please check all fields.');
       } else if (err.response?.data?.message) {
