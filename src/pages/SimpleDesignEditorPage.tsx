@@ -281,9 +281,10 @@ const SimpleDesignEditorPage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* Download button removed - users must purchase to download */}
             <button
-              onClick={downloadDesign}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              onClick={() => {/* downloadDesign removed */}}
+              className="hidden flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
             >
               <Download size={18} />
               Download

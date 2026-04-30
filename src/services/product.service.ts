@@ -582,15 +582,26 @@ class ProductService {
   }): Promise<any> {
     try {
       console.log('🚀 [Product Service] Fetching nearby vendor stores:', params);
+      
+      // Build query params - only include defined values
+      const queryParams: any = {};
+      if (params?.lat !== undefined) queryParams.lat = params.lat;
+      if (params?.lng !== undefined) queryParams.lng = params.lng;
+      if (params?.radius !== undefined) queryParams.radius = params.radius;
+      if (params?.pincode) queryParams.pincode = params.pincode;
+      if (params?.limit !== undefined) queryParams.limit = params.limit;
+      
+      console.log('📤 Query params:', queryParams);
+      
       const vendorServiceUrl = 'https://vendor-202671058278.asia-south1.run.app';
       const response = await axios.get(
         `${vendorServiceUrl}/api/vendor/stores/nearby`,
-        { params }
+        { params: queryParams }
       );
       console.log('✅ [Product Service] Vendor stores response:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('❌ [Product Service] Vendor stores failed:', error);
+      console.error('❌ [Product Service] Vendor stores failed:', error.response?.data || error.message);
       return { success: false, data: { stores: [] } };
     }
   }
@@ -609,14 +620,25 @@ class ProductService {
   }): Promise<any> {
     try {
       console.log('🚀 [Product Service] Fetching printing pickup locations:', params);
+      
+      // Build query params - only include defined values
+      const queryParams: any = {};
+      if (params?.lat !== undefined) queryParams.lat = params.lat;
+      if (params?.lng !== undefined) queryParams.lng = params.lng;
+      if (params?.radius !== undefined) queryParams.radius = params.radius;
+      if (params?.pincode) queryParams.pincode = params.pincode;
+      if (params?.limit !== undefined) queryParams.limit = params.limit;
+      
+      console.log('📤 Query params:', queryParams);
+      
       const response = await apiClient.get(
         API_CONFIG.ENDPOINTS.PRODUCTS.PRINTING.PICKUP_LOCATIONS,
-        { params }
+        { params: queryParams }
       );
       console.log('✅ [Product Service] Printing pickup locations:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('❌ [Product Service] Printing pickup locations failed:', error);
+      console.error('❌ [Product Service] Printing pickup locations failed:', error.response?.data || error.message);
       return { success: false, data: [] };
     }
   }

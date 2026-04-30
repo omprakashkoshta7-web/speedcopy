@@ -1687,10 +1687,7 @@ const DesignEditorPage: React.FC = () => {
               <button onClick={clearCanvas} className="w-full rounded-2xl bg-gray-100 px-4 py-3 text-sm font-medium text-slate-700">
                 Clear Page
               </button>
-              <button onClick={downloadDesign} className="w-full rounded-2xl bg-[#1e2a43] px-4 py-3 text-sm font-semibold text-white">
-                <Download size={14} className="inline mr-2" />
-                Download Design
-              </button>
+              {/* Download button removed - users must purchase to download */}
               <button onClick={exportPrintReady} className="w-full rounded-2xl bg-[#ff6a3d] px-4 py-3 text-sm font-semibold text-white">
                 <Download size={14} className="inline mr-2" />
                 Print Ready (JPG)

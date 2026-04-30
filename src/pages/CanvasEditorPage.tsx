@@ -297,13 +297,7 @@ const CanvasEditorPage: React.FC = () => {
               </button>
             </div>
 
-            <button
-              onClick={downloadDesign}
-              className="flex items-center gap-2 px-4 py-2 bg-[#1e2a43] text-white rounded-lg hover:bg-[#151f33] transition font-semibold"
-            >
-              <Download size={16} />
-              Download
-            </button>
+            {/* Download button removed - users must purchase to download */}
 
             <button
               onClick={addToCart}
@@ -319,16 +313,16 @@ const CanvasEditorPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Panel - Tools */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl p-6 shadow-sm space-y-4">
-              <h2 className="text-lg font-bold text-slate-900">Tools</h2>
+            <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
+              <h2 className="text-base font-bold text-slate-900">Tools</h2>
 
               {/* Upload */}
               <div>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#ff6a3d] text-white rounded-lg hover:bg-[#f35c2c] transition font-semibold"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#ff6a3d] text-white rounded-lg hover:bg-[#f35c2c] transition font-semibold text-sm"
                 >
-                  <Upload size={16} />
+                  <Upload size={14} />
                   Upload Photo
                 </button>
                 <input
@@ -344,26 +338,26 @@ const CanvasEditorPage: React.FC = () => {
               {/* Delete */}
               <button
                 onClick={deleteSelected}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition font-semibold"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition font-semibold text-sm"
               >
-                <Trash2 size={16} />
+                <Trash2 size={14} />
                 Delete Selected
               </button>
 
               {/* Quantity */}
-              <div className="border-t pt-4">
-                <label className="text-sm font-semibold text-slate-600 block mb-2">Quantity</label>
+              <div className="border-t pt-3">
+                <label className="text-xs font-semibold text-slate-600 block mb-2">Quantity</label>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                    className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 transition"
+                    className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 transition text-sm"
                   >
                     −
                   </button>
-                  <span className="flex-1 text-center font-semibold">{quantity}</span>
+                  <span className="flex-1 text-center font-semibold text-sm">{quantity}</span>
                   <button
                     onClick={() => setQuantity((prev) => prev + 1)}
-                    className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 transition"
+                    className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 transition text-sm"
                   >
                     +
                   </button>
@@ -371,16 +365,16 @@ const CanvasEditorPage: React.FC = () => {
               </div>
 
               {/* Price */}
-              <div className="border-t pt-4">
-                <p className="text-sm text-slate-600 mb-1">Price per unit</p>
-                <p className="text-2xl font-bold text-[#ff6a3d]">₹{displayPrice.toFixed(2)}</p>
-                <p className="text-sm text-slate-600 mt-2">Total: ₹{(displayPrice * quantity).toFixed(2)}</p>
+              <div className="border-t pt-3">
+                <p className="text-xs text-slate-600 mb-1">Price per unit</p>
+                <p className="text-xl font-bold text-[#ff6a3d]">₹{displayPrice.toFixed(2)}</p>
+                <p className="text-xs text-slate-600 mt-1">Total: ₹{(displayPrice * quantity).toFixed(2)}</p>
               </div>
 
               {/* Uploaded Images */}
               {uploadedImages.length > 0 && (
-                <div className="border-t pt-4">
-                  <p className="text-sm font-semibold text-slate-600 mb-2">Uploaded Photos ({uploadedImages.length})</p>
+                <div className="border-t pt-3">
+                  <p className="text-xs font-semibold text-slate-600 mb-2">Uploaded ({uploadedImages.length})</p>
                   <div className="grid grid-cols-2 gap-2">
                     {uploadedImages.map((img, idx) => (
                       <button
@@ -388,7 +382,7 @@ const CanvasEditorPage: React.FC = () => {
                         onClick={() => addImageToCanvas(img)}
                         className="rounded-lg overflow-hidden border-2 border-gray-200 hover:border-[#ff6a3d] transition"
                       >
-                        <img src={img} alt={`upload-${idx}`} className="w-full h-16 object-cover" />
+                        <img src={img} alt={`upload-${idx}`} className="w-full h-12 object-cover" />
                       </button>
                     ))}
                   </div>

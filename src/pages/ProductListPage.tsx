@@ -190,7 +190,7 @@ const ProductListPage: React.FC = () => {
         ? 'Browse our gifting collection'
         : 'Browse our shopping collection';
     const actionButtonText = isBusinessPrinting ? 'Start Design' : (isGiftingFlow ? 'Customize Gift' : 'View Product');
-    const showWishlistButton = isBusinessPrinting || isGiftingFlow;
+    const showWishlistButton = true; // Enable wishlist for all product types
     const showCardActionButton = isBusinessPrinting || isGiftingFlow;
 
     return (

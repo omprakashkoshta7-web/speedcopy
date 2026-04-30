@@ -126,7 +126,7 @@ const BusinessPrintingPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
+      <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', overflowX: 'hidden' }}>
         <Navbar />
         
         {/* Marquee Banner - Below Navbar */}
@@ -150,7 +150,7 @@ const BusinessPrintingPage: React.FC = () => {
   }
 
   return (
-    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
+    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', overflowX: 'hidden' }}>
       <Navbar />
       
       {/* Marquee Banner - Below Navbar */}

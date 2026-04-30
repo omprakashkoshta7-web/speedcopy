@@ -207,26 +207,26 @@ const CartPage: React.FC = () => {
           <span style={{ color: '#4b5563' }}>Cart</span>
         </div>
 
-        <h1 className="font-bold text-gray-900 mb-1" style={{ fontSize: '28px' }}>{pageTitle}</h1>
-        <p className="text-sm mb-6" style={{ color: '#9ca3af' }}>You have {items.length} {items.length === 1 ? 'item' : 'items'} in your cart</p>
+        <h1 className="font-bold text-gray-900 mb-1" style={{ fontSize: '24px' }}>{pageTitle}</h1>
+        <p className="text-sm mb-4" style={{ color: '#9ca3af' }}>You have {items.length} {items.length === 1 ? 'item' : 'items'} in your cart</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Cart Items */}
-          <div className="lg:col-span-2 space-y-3">
+          <div className="lg:col-span-2 space-y-2">
             {items.map((item) => (
               <div
                 key={item.id}
-                className="bg-white rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
-                style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #e5e7eb' }}
+                className="bg-white rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3"
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)', border: '1px solid #e5e7eb' }}
               >
-                <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
+                <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
                   <img src={item.image} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 </div>
 
                 <div className="flex-1 min-w-0 w-full">
                   <p className="text-xs font-bold tracking-widest mb-1 uppercase" style={{ color: '#9ca3af' }}>{item.tag}</p>
                   <p className="font-semibold text-gray-900 mb-1" style={{ fontSize: '15px' }}>{item.name}</p>
-                  <p className="text-xs mb-3" style={{ color: '#9ca3af' }}>
+                  <p className="text-xs mb-2" style={{ color: '#9ca3af' }}>
                     {item.designPreview ? 'Design attached from editor' : item.desc}
                   </p>
                   
@@ -274,11 +274,11 @@ const CartPage: React.FC = () => {
           </div>
 
           {/* Order Summary Sidebar */}
-          <div className="lg:col-span-1 space-y-3">
-            <div className="bg-white rounded-2xl p-5 sm:p-6" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <h2 className="font-bold text-gray-900 mb-5" style={{ fontSize: '16px' }}>Order Summary</h2>
+          <div className="lg:col-span-1 space-y-2">
+            <div className="bg-white rounded-xl p-4 sm:p-5" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <h2 className="font-bold text-gray-900 mb-4" style={{ fontSize: '15px' }}>Order Summary</h2>
               
-              <div className="space-y-3 mb-5 pb-5" style={{ borderBottom: '1px solid #e5e7eb' }}>
+              <div className="space-y-2 mb-4 pb-4" style={{ borderBottom: '1px solid #e5e7eb' }}>
                 <div className="flex justify-between items-center">
                   <span className="text-xs" style={{ color: '#9ca3af' }}>Subtotal</span>
                   <span className="text-sm font-semibold text-gray-900">₹{subtotal.toFixed(2)}</span>
@@ -293,17 +293,17 @@ const CartPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between mb-4">
                 <span className="font-bold text-gray-900 text-sm">Total</span>
                 <div className="text-right">
-                  <p className="font-bold text-gray-900" style={{ fontSize: '20px' }}>₹{total.toFixed(2)}</p>
+                  <p className="font-bold text-gray-900" style={{ fontSize: '18px' }}>₹{total.toFixed(2)}</p>
                   <p className="text-xs" style={{ color: '#9ca3af' }}>incl. taxes</p>
                 </div>
               </div>
 
               <button 
                 onClick={() => navigate('/checkout', { state: { flow: flowFilter } })} 
-                className="w-full py-3 text-white font-bold rounded-full hover:bg-gray-800 transition text-sm flex items-center justify-center gap-2"
+                className="w-full py-2.5 text-white font-bold rounded-full hover:bg-gray-800 transition text-sm flex items-center justify-center gap-2"
                 style={{ backgroundColor: '#111111' }}
               >
                 Checkout
@@ -314,7 +314,7 @@ const CartPage: React.FC = () => {
             </div>
 
             {/* Promo Code */}
-            <div className="bg-white rounded-2xl p-4" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div className="bg-white rounded-xl p-3" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <p className="text-xs font-bold tracking-widest mb-2 uppercase" style={{ color: '#9ca3af' }}>Promo Code</p>
               <div className="flex items-center gap-2">
                 <input 
@@ -334,13 +334,13 @@ const CartPage: React.FC = () => {
             </div>
 
             {/* Delivery Info */}
-            <div className="flex items-start gap-3 px-4 py-3 rounded-2xl" style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
-              <svg className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#16a34a' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex items-start gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
+              <svg className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#16a34a' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               <div>
                 <p className="font-bold text-gray-900 text-xs">Free shipping on orders over ₹50</p>
-                <p className="text-xs mt-1" style={{ color: '#4b5563' }}>Order within 3 hours for fast delivery</p>
+                <p className="text-xs mt-0.5" style={{ color: '#4b5563' }}>Order within 3 hours for fast delivery</p>
               </div>
             </div>
           </div>

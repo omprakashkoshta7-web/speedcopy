@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { PDFDocument } from 'pdf-lib';
 import Navbar from '../components/Navbar';
 import productService from '../services/product.service';
 import orderService from '../services/order.service';
@@ -72,11 +73,13 @@ const PrintConfigPage: React.FC = () => {
   const productId = searchParams.get('product') || '';
 
   const [copies, setCopies] = useState(1);
-  const [linearSheets, setLinearSheets] = useState(1);
-  const [semiLog, setSemiLog] = useState(1);
+  const [linearSheets, setLinearSheets] = useState(0);
+  const [semiLog, setSemiLog] = useState(0);
   const [colorMode, setColorMode] = useState('');
   const [pageSize, setPageSize] = useState('');
   const [printSide, setPrintSide] = useState('');
+  const [bindingType, setBindingType] = useState('');
+  const [coverPage, setCoverPage] = useState('None');
   const [selectedPrintType] = useState('');
   const [instructions, setInstructions] = useState('');
   const [loading, setLoading] = useState(false);
@@ -97,6 +100,12 @@ const PrintConfigPage: React.FC = () => {
       '4 in 1 (2 front+2 Back)': 0.8
     },
     graphSheetPrice: 3, // per sheet
+    coverPagePrice: {
+      'None': 0,
+      'Transparent': 5,
+      'Colored': 10,
+      'Leather-finish': 20
+    },
     processingFee: 5
   };
 
@@ -115,8 +124,13 @@ const PrintConfigPage: React.FC = () => {
       total += baseRate * totalPages * copies * sideMultiplier;
     }
     
-    // Graph sheets cost
-    total += (linearSheets + semiLog) * pricingConfig.graphSheetPrice;
+    // Graph sheets cost (only if selected)
+    if (linearSheets > 0 || semiLog > 0) {
+      total += (linearSheets + semiLog) * pricingConfig.graphSheetPrice;
+    }
+    
+    // Cover page cost
+    total += pricingConfig.coverPagePrice[coverPage as keyof typeof pricingConfig.coverPagePrice] || 0;
     
     // Processing fee
     total += pricingConfig.processingFee;
@@ -163,31 +177,52 @@ const PrintConfigPage: React.FC = () => {
     const newFiles: any[] = [];
     
     // Process each file
-    Array.from(files).forEach((file, index) => {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const fileData = {
-          id: `${Date.now()}_${index}`,
-          name: file.name,
-          size: file.size,
-          pages: Math.ceil(file.size / 100000), // Estimate pages
-          uploadedAt: new Date().toISOString(),
-          mimetype: file.type,
-          data: e.target?.result, // Store file data for local use
+      
+      await new Promise<void>((resolve) => {
+        reader.onload = async (e) => {
+          let pageCount = 1;
+          
+          // If it's a PDF, extract actual page count
+          if (file.type === 'application/pdf' && e.target?.result) {
+            try {
+              const arrayBuffer = e.target.result as ArrayBuffer;
+              const pdfDoc = await PDFDocument.load(arrayBuffer);
+              pageCount = pdfDoc.getPageCount();
+              console.log(`✅ PDF "${file.name}" has ${pageCount} pages`);
+            } catch (error) {
+              console.error('Failed to parse PDF:', error);
+              // Fallback to estimation
+              pageCount = Math.ceil(file.size / 100000);
+            }
+          } else {
+            // For non-PDF files, estimate based on size
+            pageCount = Math.ceil(file.size / 100000);
+          }
+          
+          const fileData = {
+            id: `${Date.now()}_${i}`,
+            name: file.name,
+            size: file.size,
+            pages: pageCount,
+            uploadedAt: new Date().toISOString(),
+            mimetype: file.type,
+            data: e.target?.result,
+          };
+          newFiles.push(fileData);
+          resolve();
         };
-        newFiles.push(fileData);
-        
-        // When all files are processed, update state
-        if (newFiles.length === Array.from(files).length) {
-          setUploadedFiles(prev => {
-            const updated = [...prev, ...newFiles];
-            // Save to localStorage
-            localStorage.setItem('uploadedFiles', JSON.stringify(updated));
-            return updated;
-          });
-        }
-      };
-      reader.readAsArrayBuffer(file);
+        reader.readAsArrayBuffer(file);
+      });
+    }
+    
+    // Update state with all processed files
+    setUploadedFiles(prev => {
+      const updated = [...prev, ...newFiles];
+      localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+      return updated;
     });
 
     // Also try to upload to backend
@@ -199,7 +234,6 @@ const PrintConfigPage: React.FC = () => {
       await productService.uploadFiles(formData);
     } catch (err: any) {
       console.log('Backend upload failed, using local storage:', err.message);
-      // Files are already saved locally, so this is not critical
     }
   };
 
@@ -319,6 +353,16 @@ const PrintConfigPage: React.FC = () => {
     <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {/* Back Button */}
+        <button 
+          onClick={() => navigate(-1)} 
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition mb-4 font-semibold"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
         <div className="flex flex-col lg:flex-row gap-6">
 
           {/* Left */}
@@ -410,6 +454,12 @@ const PrintConfigPage: React.FC = () => {
             <Dropdown label="Color Mode" options={['B&W', 'color', 'Custom']} value={colorMode} onChange={setColorMode} />
             <Dropdown label="Page size" options={['A4', 'A3']} value={pageSize} onChange={setPageSize} />
             <Dropdown label="Print Side" options={['one-sided', 'Two-sided', '4 in 1 (2 front+2 Back)']} value={printSide} onChange={setPrintSide} />
+            <Dropdown label="Binding Type" options={['None', 'Soft Binding', 'Spiral Binding', 'Thesis Binding']} value={bindingType} onChange={setBindingType} />
+            
+            {/* Cover Page Options - Show when binding is selected */}
+            {bindingType && bindingType !== 'None' && (
+              <Dropdown label="Cover Page" options={['None', 'Transparent', 'Colored', 'Leather-finish']} value={coverPage} onChange={setCoverPage} />
+            )}
 
             {/* Special Instructions */}
             <div className="mb-4">

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import ShareModal from '../components/ShareModal';
 import { useAuth } from '../context/AuthContext';
 import productService from '../services/product.service';
 import orderService from '../services/order.service';
@@ -92,6 +93,7 @@ const ProductDetailPage: React.FC = () => {
   const [cartError, setCartError] = useState('');
   const [businessCardCustomization, setBusinessCardCustomization] = useState<BusinessCardCustomization>({});
   const [selectedFrame, setSelectedFrame] = useState<Frame | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   // Removed unused iconType variable
 
   useEffect(() => {
@@ -358,10 +360,21 @@ const ProductDetailPage: React.FC = () => {
 
           {/* RIGHT — product info */}
           <div className="pt-2">
-            {/* Name */}
-            <h1 className="font-semibold text-gray-900 mb-3 leading-tight" style={{ fontSize: '28px' }}>
-              {productName}
-            </h1>
+            {/* Name and Share Button */}
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <h1 className="font-semibold text-gray-900 leading-tight flex-1" style={{ fontSize: '28px' }}>
+                {productName}
+              </h1>
+              <button
+                onClick={() => setShareModalOpen(true)}
+                className="flex-shrink-0 p-2 hover:bg-gray-100 rounded-lg transition"
+                title="Share product"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </button>
+            </div>
 
             {/* Price */}
             <div className="flex items-baseline gap-3 mb-8">
@@ -654,6 +667,14 @@ const ProductDetailPage: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        productName={productName}
+        productUrl={`/product/${id}${requestedFlow ? `?flow=${requestedFlow}` : ''}`}
+      />
     </div>
   );
 };
