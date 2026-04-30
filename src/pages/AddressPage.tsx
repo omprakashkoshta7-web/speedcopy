@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import userService from '../services/user.service';
@@ -22,7 +22,12 @@ const AddressPage: React.FC = () => {
     type: 'Home'
   });
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated } = useAuth();
+  
+  // Get print type from navigation state
+  const printType = (location.state as any)?.printType;
+  const fromPrintFlow = (location.state as any)?.fromPrintFlow;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -131,17 +136,25 @@ const AddressPage: React.FC = () => {
         country: 'India',
       };
 
-      await userService.addAddress(formattedAddress);
-      await fetchAddresses();
-      setShowAddForm(false);
-      setNewAddressForm({
-        name: '',
-        phone: '',
-        house: '',
-        area: '',
-        pincode: '',
-        type: 'Home'
-      });
+      const response = await userService.addAddress(formattedAddress);
+      const newAddress = response.data;
+      
+      // If coming from print flow, navigate to print-config with new address
+      if (fromPrintFlow && printType) {
+        navigate(`/print-config?type=${printType}`, { state: { selectedAddress: newAddress } });
+      } else {
+        // Default behavior - refresh addresses list
+        await fetchAddresses();
+        setShowAddForm(false);
+        setNewAddressForm({
+          name: '',
+          phone: '',
+          house: '',
+          area: '',
+          pincode: '',
+          type: 'Home'
+        });
+      }
     } catch (err) {
       console.error('Failed to add address:', err);
       alert('Failed to add address');
@@ -187,8 +200,14 @@ const AddressPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-col sm:flex-row items-start justify-between mb-8 px-1 gap-4">
           <div>
-            <h1 className="font-bold text-gray-900 mb-1" style={{ fontSize: '28px' }}>Saved Addresses</h1>
-            <p style={{ color: '#9ca3af', fontSize: '14px' }}>Manage your shipping and billing locations for faster checkout.</p>
+            <h1 className="font-bold text-gray-900 mb-1" style={{ fontSize: '28px' }}>
+              {fromPrintFlow ? 'Select Delivery Address' : 'Saved Addresses'}
+            </h1>
+            <p style={{ color: '#9ca3af', fontSize: '14px' }}>
+              {fromPrintFlow 
+                ? 'Choose where you want your printed documents delivered.' 
+                : 'Manage your shipping and billing locations for faster checkout.'}
+            </p>
           </div>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
@@ -407,7 +426,15 @@ const AddressPage: React.FC = () => {
                       <span className="text-xs font-medium" style={{ color: '#6b7280' }}>{addr.phone}</span>
                     </div>
                     <button
-                      onClick={() => navigate('/checkout', { state: { selectedAddress: addr } })}
+                      onClick={() => {
+                        // If coming from print flow, navigate to print-config with selected address
+                        if (fromPrintFlow && printType) {
+                          navigate(`/print-config?type=${printType}`, { state: { selectedAddress: addr } });
+                        } else {
+                          // Default behavior - navigate to checkout
+                          navigate('/checkout', { state: { selectedAddress: addr } });
+                        }
+                      }}
                       className="text-xs font-bold px-3 py-1.5 rounded-full text-white transition hover:opacity-90"
                       style={{ backgroundColor: '#111111' }}>
                       Deliver Here →

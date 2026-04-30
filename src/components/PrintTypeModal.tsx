@@ -197,7 +197,8 @@ const PrintTypeModal: React.FC<PrintTypeModalProps> = ({ onClose }) => {
                   onClick={() => {
                     const types = ['standard', 'soft-binding', 'spiral-binding', 'thesis-binding'];
                     onClose();
-                    navigate(`/print-config?type=${types[idx]}`);
+                    // Navigate to address page first with print type in state
+                    navigate('/addresses', { state: { printType: types[idx], fromPrintFlow: true } });
                   }}
                 >
                   <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mb-3 sm:mb-4" style={{ backgroundColor: '#f3f4f6' }}>
