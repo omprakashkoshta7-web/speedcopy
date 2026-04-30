@@ -192,6 +192,8 @@ const PickupLocationPage: React.FC = () => {
     limit?: number;
     pincode?: string;
   }) => {
+    console.log('🔄 loadStores called with params:', params);
+    
     // Try both APIs in parallel and merge results
     const [vendorRes, printingRes] = await Promise.allSettled([
       productService.getNearbyVendorStores(params),
@@ -204,18 +206,34 @@ const PickupLocationPage: React.FC = () => {
     // Parse vendor stores: { success, data: { stores: [...] } }
     if (vendorRes.status === 'fulfilled') {
       const res = vendorRes.value;
-      const raw = res?.data?.stores || res?.stores || [];
-      if (Array.isArray(raw)) vendorStores.push(...raw);
+      console.log('📦 Vendor API response:', res);
+      const raw = res?.data?.stores || res?.stores || res?.data || [];
+      console.log('📦 Extracted vendor stores:', raw);
+      if (Array.isArray(raw)) {
+        vendorStores.push(...raw);
+      } else {
+        console.warn('⚠️ Vendor stores is not an array:', raw);
+      }
+    } else {
+      console.error('❌ Vendor API failed:', vendorRes.reason);
     }
 
     // Parse printing pickup locations: { success, data: [...] }
     if (printingRes.status === 'fulfilled') {
       const res = printingRes.value;
+      console.log('🖨️ Printing API response:', res);
       const raw = res?.data || [];
-      if (Array.isArray(raw)) printingStores.push(...raw);
+      console.log('🖨️ Extracted printing stores:', raw);
+      if (Array.isArray(raw)) {
+        printingStores.push(...raw);
+      } else {
+        console.warn('⚠️ Printing stores is not an array:', raw);
+      }
+    } else {
+      console.error('❌ Printing API failed:', printingRes.reason);
     }
 
-    console.log('📦 Vendor stores:', vendorStores.length, '| Printing stores:', printingStores.length);
+    console.log('📦 Total vendor stores:', vendorStores.length, '| Printing stores:', printingStores.length);
 
     // Merge — deduplicate by _id
     const seen = new Set<string>();
@@ -227,7 +245,11 @@ const PickupLocationPage: React.FC = () => {
       merged.push(s);
     }
 
-    return merged.map(mapVendorStoreToLocation);
+    console.log('🔀 Merged stores before mapping:', merged.length);
+    const mappedStores = merged.map(mapVendorStoreToLocation);
+    console.log('✅ Final mapped stores:', mappedStores.length, mappedStores);
+    
+    return mappedStores;
   };
 
   useEffect(() => {
@@ -241,18 +263,27 @@ const PickupLocationPage: React.FC = () => {
       console.log('🔍 Fetching pickup locations...');
 
       // Try user GPS, fallback to India center
-      let geoParams = { lat: 20.5937, lng: 78.9629 };
+      let geoParams = { lat: 20.5937, lng: 78.9629, radius: 5000, limit: 50 };
       try {
         const pos = await getCurrentPosition();
-        geoParams = { lat: pos.lat, lng: pos.lng };
+        geoParams = { lat: pos.lat, lng: pos.lng, radius: 5000, limit: 50 };
         console.log('✅ User location:', geoParams);
       } catch {
         console.log('⚠️ Using default India coordinates');
       }
 
-      const apiStores = await loadStores({ ...geoParams, radius: 5000, limit: 50 });
-      console.log('✅ API stores:', apiStores.length);
-      setLocations(apiStores);
+      const apiStores = await loadStores(geoParams);
+      console.log('✅ API stores returned:', apiStores.length);
+      
+      if (apiStores.length === 0) {
+        console.warn('⚠️ No stores found, trying without location params...');
+        // Try without location params as fallback
+        const fallbackStores = await loadStores({ limit: 50 });
+        console.log('✅ Fallback stores:', fallbackStores.length);
+        setLocations(fallbackStores);
+      } else {
+        setLocations(apiStores);
+      }
     } catch (error) {
       console.error('❌ fetchLocations error:', error);
       setLocations([]);
