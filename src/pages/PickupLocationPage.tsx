@@ -107,20 +107,6 @@ const mapVendorStoreToLocation = (store: any): PickupLocation => {
   };
 };
 
-const getStoresFromResponse = (response: any): any[] => {
-  // Handle all possible API response structures
-  const stores =
-    response?.data?.stores ||
-    response?.data?.data?.stores ||
-    response?.data?.vendors ||
-    response?.data?.data ||
-    response?.stores ||
-    response?.vendors ||
-    response?.data ||
-    [];
-  return Array.isArray(stores) ? stores : [];
-};
-
 const getCurrentPosition = () =>
   new Promise<{ lat: number; lng: number }>((resolve, reject) => {
     if (!navigator.geolocation) {
