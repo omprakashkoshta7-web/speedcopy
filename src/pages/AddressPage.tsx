@@ -50,6 +50,13 @@ const AddressPage: React.FC = () => {
       setSavingAddress(true);
       setModalError('');
 
+      // Validation
+      if (!formData.name || !formData.phone || !formData.house || !formData.area || !formData.pincode) {
+        setModalError('Please fill all required fields');
+        setSavingAddress(false);
+        return;
+      }
+
       const formattedAddress = {
         label: formData.type as 'Home' | 'Office' | 'Other',
         fullName: formData.name.trim(),
@@ -72,6 +79,7 @@ const AddressPage: React.FC = () => {
         const updatedAddress = response.data;
         setAddresses(addresses.map(a => a._id === editingAddress._id ? updatedAddress : a));
         setEditingAddress(null);
+        setShowAddModal(false);
       } else {
         // Add new address
         const response = await userService.addAddress(formattedAddress);
@@ -86,9 +94,19 @@ const AddressPage: React.FC = () => {
           setShowAddModal(false);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save address:', err);
-      setModalError('Failed to save address. Please try again.');
+      
+      // Better error messages
+      if (err.response?.status === 401) {
+        setModalError('Please login to save address');
+      } else if (err.response?.status === 400) {
+        setModalError(err.response?.data?.message || 'Invalid address data. Please check all fields.');
+      } else if (err.response?.data?.message) {
+        setModalError(err.response.data.message);
+      } else {
+        setModalError('Failed to save address. Please try again.');
+      }
     } finally {
       setSavingAddress(false);
     }
@@ -211,28 +229,12 @@ const AddressPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid #f3f4f6' }}>
-                <div className="flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5" style={{ color: '#6366f1' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <span className="text-xs font-medium" style={{ color: '#6b7280' }}>{addr.phone}</span>
-                </div>
-                <button
-                  onClick={() => {
-                    // If coming from print flow, navigate to print-config with selected address
-                    if (fromPrintFlow && printType) {
-                      navigate(`/print-config?type=${printType}`, { state: { selectedAddress: addr } });
-                    } else {
-                      // Default behavior - navigate to checkout
-                      navigate('/checkout', { state: { selectedAddress: addr } });
-                    }
-                  }}
-                  className="text-xs font-bold px-3 py-1.5 rounded-full text-white transition hover:opacity-90"
-                  style={{ backgroundColor: '#111111' }}>
-                  Deliver Here →
-                </button>
+              <div className="flex items-center gap-1.5 pt-4" style={{ borderTop: '1px solid #f3f4f6' }}>
+                <svg className="w-3.5 h-3.5" style={{ color: '#6366f1' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                <span className="text-xs font-medium" style={{ color: '#6b7280' }}>{addr.phone}</span>
               </div>
             </div>
           ))}
