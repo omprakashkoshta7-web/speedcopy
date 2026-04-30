@@ -114,12 +114,21 @@ const AddressPage: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to save address:', err);
       console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      console.error('Error message:', err.response?.data?.message);
+      console.error('Validation errors:', err.response?.data?.errors);
       
       // Better error messages
       if (err.response?.status === 401) {
         setModalError('Please login to save address');
       } else if (err.response?.status === 422) {
-        setModalError(err.response?.data?.message || 'Validation failed. Please check all fields.');
+        // Show specific validation errors if available
+        const validationErrors = err.response?.data?.errors;
+        if (validationErrors && Array.isArray(validationErrors)) {
+          setModalError(`Validation failed: ${validationErrors.map((e: any) => e.message || e).join(', ')}`);
+        } else {
+          setModalError(err.response?.data?.message || 'Validation failed. Please check all fields.');
+        }
       } else if (err.response?.status === 400) {
         setModalError(err.response?.data?.message || 'Invalid address data. Please check all fields.');
       } else if (err.response?.data?.message) {
