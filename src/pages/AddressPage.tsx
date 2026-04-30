@@ -72,21 +72,25 @@ const AddressPage: React.FC = () => {
         return;
       }
 
-      const formattedAddress = {
+      const formattedAddress: any = {
         label: formData.type as 'Home' | 'Office' | 'Other',
         fullName: formData.name.trim(),
         phone: cleanPhone, // Remove + sign and spaces
         houseNo: formData.house.trim(),
         area: formData.area.trim(),
-        landmark: formData.landmark?.trim() || '',
         line1: `${formData.house.trim()}, ${formData.area.trim()}`,
-        line2: formData.landmark?.trim() || '',
         city: 'Mumbai',
         state: 'Maharashtra',
         pincode: formData.pincode.trim(),
         country: 'India',
         isDefault: formData.isDefault || false,
       };
+
+      // Only add optional fields if they have values
+      if (formData.landmark?.trim()) {
+        formattedAddress.landmark = formData.landmark.trim();
+        formattedAddress.line2 = formData.landmark.trim();
+      }
 
       console.log('Sending address data:', formattedAddress);
 
