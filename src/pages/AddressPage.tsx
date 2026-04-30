@@ -1,26 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+import AddressModal from '../components/AddressModal';
 import { useAuth } from '../context/AuthContext';
 import userService from '../services/user.service';
-import { Edit2, Trash2, Save, X, Plus } from 'lucide-react';
+import { Edit2, Trash2 } from 'lucide-react';
 
 const AddressPage: React.FC = () => {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<any>({});
-  const [savingId, setSavingId] = useState<string | null>(null);
+  const [editingAddress, setEditingAddress] = useState<any>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newAddressForm, setNewAddressForm] = useState({
-    name: '',
-    phone: '',
-    house: '',
-    area: '',
-    pincode: '',
-    type: 'Home'
-  });
+  const [modalError, setModalError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
@@ -51,52 +45,52 @@ const AddressPage: React.FC = () => {
     }
   };
 
-  const handleEdit = (addr: any) => {
-    setEditingId(addr._id);
-    setEditForm({
-      name: addr.fullName || addr.name || '',
-      phone: addr.phone || '',
-      house: addr.houseNo || addr.house || '',
-      area: addr.area || '',
-      pincode: addr.pincode || '',
-      type: addr.label || 'Home'
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditForm({});
-  };
-
-  const handleSaveEdit = async (id: string) => {
+  const handleSaveAddress = async (formData: any) => {
     try {
-      setSavingId(id);
+      setSavingAddress(true);
+      setModalError('');
+
       const formattedAddress = {
-        label: editForm.type,
-        fullName: editForm.name.trim(),
-        phone: editForm.phone.trim(),
-        houseNo: editForm.house.trim(),
-        area: editForm.area.trim(),
-        landmark: editForm.landmark?.trim() || '',
-        line1: `${editForm.house.trim()}, ${editForm.area.trim()}`,
-        line2: editForm.landmark?.trim() || '',
+        label: formData.type as 'Home' | 'Office' | 'Other',
+        fullName: formData.name.trim(),
+        phone: formData.phone.trim(),
+        houseNo: formData.house.trim(),
+        area: formData.area.trim(),
+        landmark: formData.landmark?.trim() || '',
+        line1: `${formData.house.trim()}, ${formData.area.trim()}`,
+        line2: formData.landmark?.trim() || '',
         city: 'Mumbai',
         state: 'Maharashtra',
-        pincode: editForm.pincode.trim(),
+        pincode: formData.pincode.trim(),
         country: 'India',
-        isDefault: editForm.isDefault || false,
+        isDefault: formData.isDefault || false,
       };
 
-      const response = await userService.updateAddress(id, formattedAddress);
-      const updatedAddress = response.data;
-      setAddresses(addresses.map(a => a._id === id ? updatedAddress : a));
-      setEditingId(null);
-      setEditForm({});
+      if (editingAddress) {
+        // Update existing address
+        const response = await userService.updateAddress(editingAddress._id, formattedAddress);
+        const updatedAddress = response.data;
+        setAddresses(addresses.map(a => a._id === editingAddress._id ? updatedAddress : a));
+        setEditingAddress(null);
+      } else {
+        // Add new address
+        const response = await userService.addAddress(formattedAddress);
+        const newAddress = response.data;
+        
+        // If coming from print flow, navigate to print-config with new address
+        if (fromPrintFlow && printType) {
+          navigate(`/print-config?type=${printType}`, { state: { selectedAddress: newAddress } });
+          return;
+        } else {
+          await fetchAddresses();
+          setShowAddModal(false);
+        }
+      }
     } catch (err) {
-      console.error('Failed to update address:', err);
-      alert('Failed to update address');
+      console.error('Failed to save address:', err);
+      setModalError('Failed to save address. Please try again.');
     } finally {
-      setSavingId(null);
+      setSavingAddress(false);
     }
   };
 
@@ -112,54 +106,6 @@ const AddressPage: React.FC = () => {
       alert('Failed to delete address');
     } finally {
       setDeletingId(null);
-    }
-  };
-
-  const handleAddNew = async () => {
-    if (!newAddressForm.name || !newAddressForm.phone || !newAddressForm.house || !newAddressForm.area || !newAddressForm.pincode) {
-      alert('Please fill all fields');
-      return;
-    }
-
-    try {
-      setSavingId('new');
-      const formattedAddress: any = {
-        label: newAddressForm.type as 'Home' | 'Office' | 'Other',
-        fullName: newAddressForm.name.trim(),
-        phone: newAddressForm.phone.trim(),
-        houseNo: newAddressForm.house.trim(),
-        area: newAddressForm.area.trim(),
-        line1: `${newAddressForm.house.trim()}, ${newAddressForm.area.trim()}`,
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        pincode: newAddressForm.pincode.trim(),
-        country: 'India',
-      };
-
-      const response = await userService.addAddress(formattedAddress);
-      const newAddress = response.data;
-      
-      // If coming from print flow, navigate to print-config with new address
-      if (fromPrintFlow && printType) {
-        navigate(`/print-config?type=${printType}`, { state: { selectedAddress: newAddress } });
-      } else {
-        // Default behavior - refresh addresses list
-        await fetchAddresses();
-        setShowAddForm(false);
-        setNewAddressForm({
-          name: '',
-          phone: '',
-          house: '',
-          area: '',
-          pincode: '',
-          type: 'Home'
-        });
-      }
-    } catch (err) {
-      console.error('Failed to add address:', err);
-      alert('Failed to add address');
-    } finally {
-      setSavingId(null);
     }
   };
 
@@ -210,242 +156,105 @@ const AddressPage: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 px-5 py-3 text-white font-bold rounded-full hover:bg-gray-700 transition"
             style={{ backgroundColor: '#111111', fontSize: '14px' }}
           >
-            <Plus className="w-4 h-4" />
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
             Add New Address
           </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {/* Add New Address Form Card */}
-          {showAddForm && (
-            <div className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.06)', border: '2px solid #6366f1' }}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-gray-900">New Address</h3>
-                <button onClick={() => setShowAddForm(false)} className="p-1 hover:bg-gray-100 rounded">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <select
-                  value={newAddressForm.type}
-                  onChange={(e) => setNewAddressForm({ ...newAddressForm, type: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="Home">Home</option>
-                  <option value="Office">Office</option>
-                  <option value="Other">Other</option>
-                </select>
-
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={newAddressForm.name}
-                  onChange={(e) => setNewAddressForm({ ...newAddressForm, name: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-
-                <input
-                  type="text"
-                  placeholder="Phone Number"
-                  value={newAddressForm.phone}
-                  onChange={(e) => setNewAddressForm({ ...newAddressForm, phone: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-
-                <input
-                  type="text"
-                  placeholder="House No. / Flat No."
-                  value={newAddressForm.house}
-                  onChange={(e) => setNewAddressForm({ ...newAddressForm, house: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-
-                <input
-                  type="text"
-                  placeholder="Area / Street"
-                  value={newAddressForm.area}
-                  onChange={(e) => setNewAddressForm({ ...newAddressForm, area: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-
-                <input
-                  type="text"
-                  placeholder="Pincode"
-                  value={newAddressForm.pincode}
-                  onChange={(e) => setNewAddressForm({ ...newAddressForm, pincode: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-
-                <button
-                  onClick={handleAddNew}
-                  disabled={savingId === 'new'}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  {savingId === 'new' ? 'Saving...' : 'Save Address'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Existing Address Cards */}
           {addresses.map((addr: any) => (
-            <div key={addr._id} className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.06)', border: editingId === addr._id ? '2px solid #6366f1' : '1px solid #f3f4f6' }}>
-              {editingId === addr._id ? (
-                // Edit Mode
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-bold text-gray-900">Edit Address</h3>
-                    <button onClick={handleCancelEdit} className="p-1 hover:bg-gray-100 rounded">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <select
-                    value={editForm.type}
-                    onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="Home">Home</option>
-                    <option value="Office">Office</option>
-                    <option value="Other">Other</option>
-                  </select>
-
-                  <input
-                    type="text"
-                    placeholder="Full Name"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="Phone Number"
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="House No. / Flat No."
-                    value={editForm.house}
-                    onChange={(e) => setEditForm({ ...editForm, house: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="Area / Street"
-                    value={editForm.area}
-                    onChange={(e) => setEditForm({ ...editForm, area: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="Pincode"
-                    value={editForm.pincode}
-                    onChange={(e) => setEditForm({ ...editForm, pincode: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleCancelEdit}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleSaveEdit(addr._id)}
-                      disabled={savingId === addr._id}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-                    >
-                      <Save className="w-4 h-4" />
-                      {savingId === addr._id ? 'Saving...' : 'Save'}
-                    </button>
-                  </div>
+            <div key={addr._id} className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.06)', border: '1px solid #f3f4f6' }}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#f3f4f6' }}>
+                  <svg className="w-5 h-5" style={{ color: '#6366f1' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
                 </div>
-              ) : (
-                // View Mode
-                <>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#f3f4f6' }}>
-                      <svg className="w-5 h-5" style={{ color: '#6366f1' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900" style={{ fontSize: '15px' }}>{addr.fullName || addr.name}</p>
-                      {addr.label && <p className="text-xs" style={{ color: '#9ca3af' }}>{addr.label}</p>}
-                    </div>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => handleEdit(addr)}
-                        className="p-2 hover:bg-blue-50 rounded-lg transition"
-                        title="Edit"
-                      >
-                        <Edit2 className="w-4 h-4 text-blue-600" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(addr._id)}
-                        disabled={deletingId === addr._id}
-                        className="p-2 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
-                    </div>
-                  </div>
+                <div className="flex-1">
+                  <p className="font-bold text-gray-900" style={{ fontSize: '15px' }}>{addr.fullName || addr.name}</p>
+                  {addr.label && <p className="text-xs" style={{ color: '#9ca3af' }}>{addr.label}</p>}
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setEditingAddress(addr)}
+                    className="p-2 hover:bg-blue-50 rounded-lg transition"
+                    title="Edit"
+                  >
+                    <Edit2 className="w-4 h-4 text-blue-600" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(addr._id)}
+                    disabled={deletingId === addr._id}
+                    className="p-2 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-600" />
+                  </button>
+                </div>
+              </div>
 
-                  <div className="mb-5">
-                    <p className="text-sm" style={{ color: '#6b7280', lineHeight: '1.7' }}>
-                      {addr.line1 || `${addr.houseNo || addr.house}, ${addr.area}`}
-                    </p>
-                    {addr.line2 && <p className="text-sm" style={{ color: '#6b7280', lineHeight: '1.7' }}>{addr.line2}</p>}
-                    <p className="text-sm" style={{ color: '#6b7280', lineHeight: '1.7' }}>
-                      {addr.city}, {addr.state} - {addr.pincode}
-                    </p>
-                  </div>
+              <div className="mb-5">
+                <p className="text-sm" style={{ color: '#6b7280', lineHeight: '1.7' }}>
+                  {addr.line1 || `${addr.houseNo || addr.house}, ${addr.area}`}
+                </p>
+                {addr.line2 && <p className="text-sm" style={{ color: '#6b7280', lineHeight: '1.7' }}>{addr.line2}</p>}
+                <p className="text-sm" style={{ color: '#6b7280', lineHeight: '1.7' }}>
+                  {addr.city}, {addr.state} - {addr.pincode}
+                </p>
+              </div>
 
-                  <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid #f3f4f6' }}>
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5" style={{ color: '#6366f1' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                      </svg>
-                      <span className="text-xs font-medium" style={{ color: '#6b7280' }}>{addr.phone}</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        // If coming from print flow, navigate to print-config with selected address
-                        if (fromPrintFlow && printType) {
-                          navigate(`/print-config?type=${printType}`, { state: { selectedAddress: addr } });
-                        } else {
-                          // Default behavior - navigate to checkout
-                          navigate('/checkout', { state: { selectedAddress: addr } });
-                        }
-                      }}
-                      className="text-xs font-bold px-3 py-1.5 rounded-full text-white transition hover:opacity-90"
-                      style={{ backgroundColor: '#111111' }}>
-                      Deliver Here →
-                    </button>
-                  </div>
-                </>
-              )}
+              <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid #f3f4f6' }}>
+                <div className="flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" style={{ color: '#6366f1' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <span className="text-xs font-medium" style={{ color: '#6b7280' }}>{addr.phone}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    // If coming from print flow, navigate to print-config with selected address
+                    if (fromPrintFlow && printType) {
+                      navigate(`/print-config?type=${printType}`, { state: { selectedAddress: addr } });
+                    } else {
+                      // Default behavior - navigate to checkout
+                      navigate('/checkout', { state: { selectedAddress: addr } });
+                    }
+                  }}
+                  className="text-xs font-bold px-3 py-1.5 rounded-full text-white transition hover:opacity-90"
+                  style={{ backgroundColor: '#111111' }}>
+                  Deliver Here →
+                </button>
+              </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Add/Edit Address Modal */}
+      {(showAddModal || editingAddress) && (
+        <AddressModal
+          onClose={() => {
+            setShowAddModal(false);
+            setEditingAddress(null);
+            setModalError('');
+          }}
+          onSave={handleSaveAddress}
+          error={modalError}
+          loading={savingAddress}
+          editingAddress={editingAddress}
+        />
+      )}
+
+      <Footer />
     </div>
   );
 };
