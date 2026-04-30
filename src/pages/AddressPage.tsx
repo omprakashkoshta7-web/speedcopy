@@ -65,7 +65,8 @@ const AddressPage: React.FC = () => {
       }
 
       // Validate phone format
-      if (!/^\+?\d{10,15}$/.test(formData.phone.trim().replace(/\s/g, ''))) {
+      const cleanPhone = formData.phone.trim().replace(/\s/g, '').replace(/^\+/, '');
+      if (!/^\d{10,15}$/.test(cleanPhone)) {
         setModalError('Please enter a valid phone number');
         setSavingAddress(false);
         return;
@@ -74,7 +75,7 @@ const AddressPage: React.FC = () => {
       const formattedAddress = {
         label: formData.type as 'Home' | 'Office' | 'Other',
         fullName: formData.name.trim(),
-        phone: formData.phone.trim(),
+        phone: cleanPhone, // Remove + sign and spaces
         houseNo: formData.house.trim(),
         area: formData.area.trim(),
         landmark: formData.landmark?.trim() || '',
