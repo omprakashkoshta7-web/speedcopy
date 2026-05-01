@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { fabric } from 'fabric';
-import { ArrowLeft, Upload, Trash2, Plus, Minus, ChevronDown, X } from 'lucide-react';
+import { ArrowLeft, Upload, Trash2, Plus, Minus, ChevronDown } from 'lucide-react';
 import productService from '../services/product.service';
 import orderService from '../services/order.service';
 import { useAuth } from '../context/AuthContext';

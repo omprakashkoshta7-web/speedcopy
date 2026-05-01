@@ -150,8 +150,6 @@ const DesignEditorPage: React.FC = () => {
   const [hideFooter, setHideFooter] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const readyFileInputRef = useRef<HTMLInputElement>(null);
   const [premiumTemplates, setPremiumTemplates] = useState<DesignTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);

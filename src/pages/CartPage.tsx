@@ -133,7 +133,6 @@ const CartPage: React.FC = () => {
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.price * item.qty, 0), [items]);
   const taxes = 0;
   const total = subtotal + taxes;
-  const pageTitle = isGiftingFlow ? 'Gifting Cart' : 'Shopping Cart';
   const emptyActionRoute = isGiftingFlow ? '/products?flow=gifting' : '/shopping';
 
   if (!isAuthenticated) {
@@ -208,6 +207,7 @@ const CartPage: React.FC = () => {
           <span style={{ color: '#4b5563' }}>Cart</span>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-2">
             {items.map((item) => (
               <div

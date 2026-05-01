@@ -282,7 +282,7 @@ const PrintCheckoutPage: React.FC = () => {
         orderData.deliveryCharge = 0;
         
         // Add payment method
-        if (method && method !== 'upi') {
+        if (method) {
           orderData.paymentMethod = method;
         }
 

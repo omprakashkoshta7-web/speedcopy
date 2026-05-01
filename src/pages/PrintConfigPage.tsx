@@ -44,10 +44,6 @@ const Dropdown: React.FC<DropdownProps> = ({ label, options, value, onChange }) 
           <span className="text-sm" style={{ color: value ? '#111111' : '#9ca3af', fontWeight: value ? 600 : 400 }}>
             {value || 'Select Input'}
           </span>
-          <svg className="w-4 h-4 transition-transform" style={{ color: '#9ca3af', transform: open ? 'rotate(0deg)' : 'rotate(180deg)' }}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-          </svg>
         </button>
         {open && options.map(opt => (
           <button key={opt} onClick={() => { onChange(opt); setOpen(false); }}
