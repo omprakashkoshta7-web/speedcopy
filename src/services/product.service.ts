@@ -677,21 +677,39 @@ class ProductService {
   }
   /**
    * Get printing pickup locations (customer-facing)
-   * API: GET /api/products/printing/pickup-locations
-   * Response: { success, data: [ { _id, name, address, location, workingHours, supportedFlows, distance } ] }
+   * API: GET /api/printing/pickup-locations
+   * Response: { success, data: [ { _id, name, address, city, state, pincode, phone, email,
+   *             working_hours, is_active, location, distance_km, eta, estimated_ready_time } ] }
    */
-  async getPrintingPickupLocations(params?: StoreQueryParams): Promise<any> {
+  async getPrintingPickupLocations(params?: StoreQueryParams & { printType?: string; q?: string }): Promise<any> {
     try {
       console.log('[Product Service] Fetching printing pickup locations:', params);
 
-      const queryParams = cleanStoreQueryParams(params);
-      console.log('[Product Service] Printing pickup query params:', queryParams);
+      const queryParams: Record<string, any> = {};
+      if (params?.lat !== undefined) queryParams.lat = params.lat;
+      if (params?.lng !== undefined) queryParams.lng = params.lng;
+      if (params?.radius !== undefined) queryParams.radius = params.radius;
+      if (params?.pincode) queryParams.pincode = params.pincode;
+      if (params?.limit !== undefined) queryParams.limit = params.limit;
+      if ((params as any)?.printType) queryParams.printType = (params as any).printType;
+      if ((params as any)?.q) queryParams.q = (params as any).q;
 
+      // Try /api/printing/pickup-locations first (correct endpoint per API docs)
+      try {
+        const response = await apiClient.get('/api/printing/pickup-locations', { params: queryParams });
+        console.log('[Product Service] Printing pickup locations response:', response.data);
+        const stores = extractStoresFromResponse(response.data);
+        if (stores.length > 0) return response.data;
+      } catch (e: any) {
+        console.warn('[Product Service] /api/printing/pickup-locations failed, trying fallback:', e.message);
+      }
+
+      // Fallback to products endpoint
       const response = await apiClient.get(
         API_CONFIG.ENDPOINTS.PRODUCTS.PRINTING.PICKUP_LOCATIONS,
         { params: queryParams }
       );
-      console.log('[Product Service] Printing pickup locations:', response.data);
+      console.log('[Product Service] Printing pickup locations (fallback):', response.data);
       return response.data;
     } catch (error: any) {
       console.error('[Product Service] Printing pickup locations failed:', error.response?.data || error.message);

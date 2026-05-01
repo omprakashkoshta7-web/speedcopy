@@ -41,72 +41,83 @@ const isStoreVisible = (store: any) => {
 };
 
 const formatVendorAddress = (store: any) => {
-  const address = store?.address || store?.storeAddress || store?.pickupAddress;
-  const city = store?.city || address?.city;
-  const state = store?.state || address?.state;
-  const pincode = store?.pincode || store?.pinCode || store?.zipcode || address?.pincode || address?.pinCode;
-
-  if (typeof address === 'string' && address.trim()) {
-    const parts = [address.trim()];
-    if (city && !address.toLowerCase().includes(String(city).toLowerCase())) parts.push(String(city));
-    if (state && !address.toLowerCase().includes(String(state).toLowerCase())) parts.push(String(state));
+  // Shop model (product-service): address is a single string
+  if (typeof store?.address === 'string' && store.address.trim()) {
+    const parts: string[] = [store.address.trim()];
+    const city = store?.city;
+    const state = store?.state;
+    const pincode = store?.pincode;
+    if (city && !store.address.toLowerCase().includes(String(city).toLowerCase())) parts.push(String(city));
+    if (state && !store.address.toLowerCase().includes(String(state).toLowerCase())) parts.push(String(state));
     const line = parts.join(', ');
     return pincode && !line.includes(String(pincode)) ? `${line} - ${pincode}` : line;
   }
 
-  if (address && typeof address === 'object') {
-    const parts = [
-      address.line1,
-      address.line2,
-      address.street,
-      address.area,
-      address.locality,
-      city,
-      state,
-    ]
+  // Store model (vendor-service): address is an object { line1, line2, city, state, pincode }
+  if (store?.address && typeof store.address === 'object') {
+    const a = store.address;
+    const parts = [a.line1, a.line2, a.city, a.state]
       .filter(Boolean)
-      .map((part) => String(part).trim())
+      .map((p: any) => String(p).trim())
       .filter(Boolean);
-
     const line = [...new Set(parts)].join(', ');
-    if (line) return pincode ? `${line} - ${pincode}` : line;
+    return a.pincode ? `${line} - ${a.pincode}` : line;
   }
 
-  const fallbackParts = [city, state].filter(Boolean).map((part) => String(part).trim());
-  if (fallbackParts.length > 0) {
-    const line = fallbackParts.join(', ');
-    return pincode ? `${line} - ${pincode}` : line;
-  }
-
-  return 'Address not available';
+  // Fallback: city + state + pincode
+  const city = store?.city;
+  const state = store?.state;
+  const pincode = store?.pincode || store?.pinCode;
+  const fallback = [city, state].filter(Boolean).join(', ');
+  return fallback ? (pincode ? `${fallback} - ${pincode}` : fallback) : 'Address not available';
 };
 
 const formatDistance = (store: any) => {
-  const distance = store?.distance_km ?? store?.distanceKm ?? store?.distance;
-  if (typeof distance === 'number') return `${distance.toFixed(1)} km`;
-  if (typeof distance === 'string' && distance.trim()) {
-    return distance.toLowerCase().includes('km') ? distance : `${distance} km`;
+  // Vendor API: distance in meters (MongoDB $geoNear)
+  const distanceMeters = store?.distance;
+  if (typeof distanceMeters === 'number' && distanceMeters > 100) {
+    return `${(distanceMeters / 1000).toFixed(1)} km`;
+  }
+  // Printing API: distance_km (Haversine formula)
+  const distanceKm = store?.distance_km ?? store?.distanceKm;
+  if (typeof distanceKm === 'number') return `${distanceKm.toFixed(1)} km`;
+  // Small number from vendor API (already in km)
+  if (typeof distanceMeters === 'number') return `${distanceMeters.toFixed(1)} km`;
+  if (typeof distanceMeters === 'string' && distanceMeters.trim()) {
+    return distanceMeters.toLowerCase().includes('km') ? distanceMeters : `${distanceMeters} km`;
   }
   return 'Nearby';
 };
 
 const mapVendorStoreToLocation = (store: any): PickupLocation => {
   const isActive = isStoreVisible(store);
-  const approvalStatus = String(store?.approval_status || store?.approvalStatus || '').toLowerCase();
-  const isPendingApproval = approvalStatus === 'pending';
-  const workingHours = store?.working_hours || store?.workingHours || store?.hours || 'OPEN NOW';
+
+  // Working hours — vendor uses workingHours, shop uses workingHours or working_hours
+  const workingHours = store?.workingHours || store?.working_hours || store?.hours || 'OPEN NOW';
+
   const status: 'open' | 'closed' | 'open247' = !isActive
     ? 'closed'
     : String(workingHours).includes('24')
       ? 'open247'
       : 'open';
 
-  // Extract delivery time from store data or use default
-  const estimatedDeliveryTime = store?.estimatedDeliveryTime || 
-                                store?.estimated_delivery_time || 
-                                store?.readyTime || 
-                                store?.ready_time || 
-                                'Ready in 2-4 hrs';
+  // ETA — printing API provides eta/estimated_ready_time, vendor API does not
+  const estimatedDeliveryTime =
+    store?.eta ||
+    store?.estimated_ready_time ||
+    store?.estimatedDeliveryTime ||
+    store?.estimated_delivery_time ||
+    store?.readyTime ||
+    store?.ready_time ||
+    'Ready in 2-4 hrs';
+
+  // Capacity — only vendor API provides this
+  const capacity = store?.capacity || null;
+
+  // Supported flows — only vendor API provides this
+  const supportedFlows: string[] = Array.isArray(store?.supportedFlows)
+    ? store.supportedFlows
+    : [];
 
   return {
     id: getStoreIdentifier(store) || `store-${Date.now()}`,
@@ -116,12 +127,21 @@ const mapVendorStoreToLocation = (store: any): PickupLocation => {
     rating: Number(store?.rating || store?.averageRating) || 4.8,
     reviews: Number(store?.reviews || store?.reviewCount) || 0,
     status,
-    statusLabel: isPendingApproval ? 'PENDING APPROVAL' : status === 'closed' ? 'CLOSED' : String(workingHours),
-    amenities: Array.isArray(store?.amenities) && store.amenities.length ? store.amenities : ['print', 'wifi', 'parking'],
+    statusLabel: status === 'closed' ? 'CLOSED' : String(workingHours),
+    amenities: Array.isArray(store?.amenities) && store.amenities.length
+      ? store.amenities
+      : supportedFlows.length
+        ? supportedFlows
+        : ['print', 'wifi', 'parking'],
     icon: 'store',
     estimatedDeliveryTime,
     readyTime: estimatedDeliveryTime,
-  };
+    // Extra fields for display
+    phone: store?.phone || '',
+    email: store?.email || '',
+    capacity,
+    supportedFlows,
+  } as PickupLocation & { phone?: string; email?: string; capacity?: any; supportedFlows?: string[] };
 };
 const getCurrentPosition = () =>
   new Promise<{ lat: number; lng: number }>((resolve, reject) => {
