@@ -21,28 +21,28 @@ type PaymentRowProps = {
 const PaymentRow: React.FC<PaymentRowProps> = ({ id, title, desc, icon, method, onSelect }) => (
   <button
     onClick={() => onSelect(id)}
-    className="w-full flex items-center justify-between px-5 py-4 rounded-2xl transition text-left"
+    className="w-full flex items-center justify-between px-3 py-2 rounded-xl transition text-left"
     style={{
       border: method === id ? '2px solid #111111' : '1.5px solid #e5e7eb',
       backgroundColor: method === id ? '#fafafa' : '#ffffff',
-      marginBottom: '10px',
+      marginBottom: '6px',
     }}
   >
-    <div className="flex items-center gap-4">
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#f3f4f6' }}>
+    <div className="flex items-center gap-2">
+      <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
         {icon}
       </div>
-      <div>
-        <p className="font-bold text-gray-900" style={{ fontSize: '14px' }}>{title}</p>
-        <p className="text-xs" style={{ color: '#9ca3af' }}>{desc}</p>
+      <div className="min-w-0">
+        <p className="font-semibold text-gray-900" style={{ fontSize: '11px' }}>{title}</p>
+        <p style={{ color: '#9ca3af', fontSize: '9px' }}>{desc}</p>
       </div>
     </div>
     <div
-      className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+      className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
       style={{ border: method === id ? 'none' : '1.5px solid #d1d5db', backgroundColor: method === id ? '#111111' : 'transparent' }}
     >
       {method === id && (
-        <div className="w-2 h-2 rounded-full bg-white" />
+        <div className="w-1.5 h-1.5 rounded-full bg-white" />
       )}
     </div>
   </button>
@@ -471,16 +471,16 @@ const CheckoutPage: React.FC = () => {
             />
 
             {/* UPI - expanded */}
-            <div className="rounded-2xl mb-3" style={{ border: method === 'upi' ? '2px solid #111111' : '1.5px solid #e5e7eb', backgroundColor: method === 'upi' ? '#fafafa' : '#ffffff' }}>
-              <button onClick={() => setMethod('upi')} className="w-full flex items-center justify-between px-5 py-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#f3f4f6' }}>
-                    <svg className="w-5 h-5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="rounded-2xl mb-2" style={{ border: method === 'upi' ? '2px solid #111111' : '1.5px solid #e5e7eb', backgroundColor: method === 'upi' ? '#fafafa' : '#ffffff' }}>
+              <button onClick={() => setMethod('upi')} className="w-full flex items-center justify-between px-4 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#f3f4f6' }}>
+                    <svg className="w-4 h-4" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                   </div>
                   <div className="text-left">
-                    <p className="font-bold text-gray-900" style={{ fontSize: '14px' }}>UPI Options</p>
+                    <p className="font-bold text-gray-900" style={{ fontSize: '12px' }}>UPI Options</p>
                     <p className="text-xs" style={{ color: '#9ca3af' }}>Pay directly from your bank account</p>
                   </div>
                 </div>
@@ -491,11 +491,11 @@ const CheckoutPage: React.FC = () => {
               </button>
 
               {method === 'upi' && (
-                <div className="px-5 pb-5">
+                <div className="px-4 pb-3">
                   {/* Popular UPI Apps */}
-                  <div className="mb-5">
-                    <p className="text-sm font-semibold text-gray-700 mb-3">Choose UPI App</p>
-                    <div className="grid grid-cols-2 gap-3">
+                  <div className="mb-3">
+                    <p className="text-sm font-semibold text-gray-700 mb-2" style={{ fontSize: '10px' }}>Choose UPI App</p>
+                    <div className="space-y-1.5">
                       {[
                         { 
                           id: 'gpay', 
@@ -529,41 +529,33 @@ const CheckoutPage: React.FC = () => {
                         <button 
                           key={app.id} 
                           onClick={() => setSelectedUpi(app.id)}
-                          className="flex flex-col items-center gap-2 p-4 rounded-2xl transition-all duration-200 hover:scale-105"
+                          className="w-full flex items-center gap-2.5 p-2 rounded-lg transition-all hover:bg-gray-50"
                           style={{ 
-                            border: selectedUpi === app.id ? '2px solid #111111' : '2px solid #e5e7eb', 
-                            backgroundColor: selectedUpi === app.id ? '#f8fafc' : '#ffffff',
-                            boxShadow: selectedUpi === app.id ? '0 4px 12px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.05)'
+                            border: selectedUpi === app.id ? '2px solid #111111' : '1px solid #e5e7eb', 
+                            backgroundColor: selectedUpi === app.id ? '#f8fafc' : '#ffffff'
                           }}
                         >
                           <div 
-                            className="w-12 h-12 rounded-xl flex items-center justify-center"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                             style={{ backgroundColor: app.bgColor }}
                           >
                             <img 
                               src={app.logo} 
                               alt={app.label} 
-                              className="w-8 h-8 object-contain"
+                              className="w-5 h-5 object-contain"
                               onError={(e) => {
-                                // Fallback to text if image fails
                                 const target = e.target as HTMLImageElement;
                                 target.style.display = 'none';
-                                const parent = target.parentElement;
-                                if (parent) {
-                                  parent.innerHTML = `<span style="color: ${app.textColor}; font-weight: bold; font-size: 12px;">${app.label.charAt(0)}</span>`;
-                                }
                               }}
                             />
                           </div>
-                          <span className="text-xs font-semibold text-gray-700 text-center leading-tight">
+                          <span className="font-semibold text-gray-900 flex-1 text-left" style={{ fontSize: '11px' }}>
                             {app.label}
                           </span>
                           {selectedUpi === app.id && (
-                            <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
-                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
+                            <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
                           )}
                         </button>
                       ))}
@@ -571,58 +563,44 @@ const CheckoutPage: React.FC = () => {
                   </div>
 
                   {/* Divider */}
-                  <div className="flex items-center gap-4 mb-4">
+                  <div className="flex items-center gap-3 mb-3">
                     <div className="flex-1 h-px bg-gray-200" />
-                    <span className="text-xs font-semibold text-gray-400 px-2">OR ENTER UPI ID</span>
+                    <span className="font-semibold text-gray-400" style={{ fontSize: '9px' }}>OR ENTER UPI ID</span>
                     <div className="flex-1 h-px bg-gray-200" />
                   </div>
 
                   {/* UPI ID Input */}
-                  <div className="mb-4">
-                    <label className="text-sm font-semibold text-gray-700 mb-2 block">UPI ID</label>
+                  <div className="mb-3">
+                    <label className="font-semibold text-gray-700 mb-1.5 block" style={{ fontSize: '10px' }}>UPI ID</label>
                     <div className="relative">
                       <input 
                         value={upiId} 
                         onChange={e => setUpiId(e.target.value)} 
                         placeholder="yourname@paytm / yourname@gpay"
-                        className="w-full px-4 py-3 pr-20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                        className="w-full px-3 py-2 pr-16 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                         style={{ 
                           border: '2px solid #e5e7eb', 
                           backgroundColor: '#ffffff',
-                          color: '#374151'
+                          color: '#374151',
+                          fontSize: '11px'
                         }}
                       />
                       <button 
-                        className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1 text-xs font-bold rounded-lg transition hover:bg-gray-100"
-                        style={{ color: '#111111' }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg transition hover:bg-gray-100"
+                        style={{ color: '#111111', fontSize: '10px', fontWeight: 'bold' }}
                       >
                         Verify
                       </button>
                     </div>
-                    <p className="text-xs mt-2 flex items-center gap-1" style={{ color: '#9ca3af' }}>
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <p className="flex items-center gap-1 mt-1.5" style={{ color: '#9ca3af', fontSize: '9px' }}>
+                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
                       Your UPI ID is encrypted and secure
                     </p>
                   </div>
 
-                  {/* Payment Info */}
-                  <div className="flex items-start gap-3 p-4 rounded-xl" style={{ backgroundColor: '#f0f9ff', border: '1px solid #e0f2fe' }}>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#0ea5e9' }}>
-                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 mb-1">Quick & Secure Payment</p>
-                      <p className="text-xs" style={{ color: '#0369a1' }}>
-                        • Complete payment on your mobile app within 5 minutes<br/>
-                        • No need to enter card details or OTP<br/>
-                        • Instant payment confirmation
-                      </p>
-                    </div>
-                  </div>
+
                 </div>
               )}
             </div>
