@@ -212,53 +212,53 @@ const CartPage: React.FC = () => {
             {items.map((item) => (
               <div
                 key={item.id}
-                className="bg-white rounded-lg p-3 flex items-center gap-3"
-                style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)', border: '1px solid #e5e7eb' }}
+                className="bg-white rounded-xl p-4 flex items-center gap-4"
+                style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #e5e7eb' }}
               >
-                {/* Image - Smaller */}
-                <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
+                {/* Image */}
+                <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
                   <img src={item.image} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 </div>
 
-                {/* Info - Compact */}
+                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold tracking-wider mb-0.5 uppercase" style={{ color: '#9ca3af', fontSize: '8px' }}>{item.tag}</p>
-                  <p className="font-semibold text-gray-900 mb-1 truncate" style={{ fontSize: '11px' }}>{item.name}</p>
+                  <p className="font-bold tracking-wider mb-0.5 uppercase text-xs" style={{ color: '#9ca3af' }}>{item.tag}</p>
+                  <p className="font-semibold text-gray-900 mb-2 truncate text-sm">{item.name}</p>
                   
                   <div className="flex items-center justify-between">
-                    {/* Quantity Controls - Smaller */}
-                    <div className="flex items-center gap-1.5">
+                    {/* Quantity Controls */}
+                    <div className="flex items-center gap-2">
                       <button 
                         onClick={() => void updateQty(item.id, -1)} 
-                        className="w-5 h-5 rounded flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition"
-                        style={{ border: '1px solid #e5e7eb', fontSize: '10px' }}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition text-sm"
+                        style={{ border: '1px solid #e5e7eb' }}
                       >
                         −
                       </button>
-                      <span className="font-semibold text-gray-900 w-4 text-center" style={{ fontSize: '10px' }}>{item.qty}</span>
+                      <span className="font-semibold text-gray-900 w-6 text-center text-sm">{item.qty}</span>
                       <button 
                         onClick={() => void updateQty(item.id, 1)} 
-                        className="w-5 h-5 rounded flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition"
-                        style={{ border: '1px solid #e5e7eb', fontSize: '10px' }}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-gray-700 hover:bg-gray-100 transition text-sm"
+                        style={{ border: '1px solid #e5e7eb' }}
                       >
                         +
                       </button>
                     </div>
                     
-                    {/* Price & Delete - Compact */}
-                    <div className="flex items-center gap-2">
+                    {/* Price & Delete */}
+                    <div className="flex items-center gap-3">
                       <button 
                         onClick={() => void removeItem(item.id)} 
                         className="hover:opacity-60 transition p-1"
                         title="Remove"
                       >
-                        <svg className="w-3.5 h-3.5" style={{ color: '#9ca3af' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-4 h-4" style={{ color: '#9ca3af' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
                       <div className="text-right">
-                        {item.oldPrice && <p className="line-through" style={{ color: '#9ca3af', fontSize: '9px' }}>₹{item.oldPrice.toFixed(2)}</p>}
-                        <p className="font-bold text-gray-900" style={{ fontSize: '11px' }}>₹{(item.price * item.qty).toFixed(2)}</p>
+                        {item.oldPrice && <p className="line-through text-xs" style={{ color: '#9ca3af' }}>₹{item.oldPrice.toFixed(2)}</p>}
+                        <p className="font-bold text-gray-900 text-base">₹{(item.price * item.qty).toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
