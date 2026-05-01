@@ -1,6 +1,5 @@
 import apiClient from './api.service';
 import { API_CONFIG } from '../config/api.config';
-import axios from 'axios';
 
 export type StoreQueryParams = {
   lat?: number;
@@ -9,10 +8,6 @@ export type StoreQueryParams = {
   limit?: number;
   pincode?: string;
 };
-
-const VENDOR_SERVICE_URL = (
-  import.meta.env.VITE_VENDOR_API_URL || 'https://gateway-yvakohiopa-de.a.run.app'
-).replace(/\/$/, '');
 
 const cleanStoreQueryParams = (params?: StoreQueryParams) => {
   const queryParams: StoreQueryParams = {};
