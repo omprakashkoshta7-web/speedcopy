@@ -1,6 +1,7 @@
 import apiClient from './api.service';
 import { API_CONFIG } from '../config/api.config';
 
+// Gateway URL: https://gateway-yvakohiopa-de.a.run.app
 export type StoreQueryParams = {
   lat?: number;
   lng?: number;
