@@ -101,6 +101,7 @@ const SimpleFrameEditorPage: React.FC = () => {
   const textDragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const readyFileInputRef = useRef<HTMLInputElement>(null);
+  const [showAdjustmentControls, setShowAdjustmentControls] = useState(false);
 
   const productId = searchParams.get('productId');
 
@@ -759,6 +760,22 @@ const SimpleFrameEditorPage: React.FC = () => {
           {userPhotos.length > 0 && (
             <div className="p-4 border-b border-gray-100">
               <h3 className="text-sm font-semibold text-gray-800 mb-3">Your Photos ({userPhotos.length})</h3>
+              
+              {/* Toggle Adjustment Controls Button */}
+              <button
+                onClick={() => setShowAdjustmentControls(!showAdjustmentControls)}
+                className={`w-full mb-3 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 ${
+                  showAdjustmentControls 
+                    ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                {showAdjustmentControls ? 'Hide Adjustment Controls' : 'Show Adjustment Controls'}
+              </button>
+              
               <div className="grid grid-cols-2 gap-2">
                 {userPhotos.map(photo => (
                   <div key={photo.id} className="relative group">
@@ -779,7 +796,7 @@ const SimpleFrameEditorPage: React.FC = () => {
           )}
 
           {/* Adjust controls */}
-          {selectedPhoto && (
+          {selectedPhoto && showAdjustmentControls && (
             <div className="p-4 border-b border-gray-100">
               <h3 className="text-sm font-semibold text-gray-800 mb-3">Adjust Photo</h3>
               <div className="space-y-2">
@@ -909,6 +926,7 @@ const SimpleFrameEditorPage: React.FC = () => {
               const w = photo.width * photo.scale;
               const h = photo.height * photo.scale;
               const isSelected = selectedPhotoId === photo.id;
+              const showBorder = isSelected && showAdjustmentControls;
               
               return (
                 <div
@@ -922,7 +940,7 @@ const SimpleFrameEditorPage: React.FC = () => {
                     width: w,
                     height: h,
                     cursor: 'move',
-                    border: isSelected ? '2px solid #ff6a3d' : 'none',
+                    border: showBorder ? '2px solid #ff6a3d' : 'none',
                     boxSizing: 'border-box',
                     zIndex: isSelected ? 10 : 5,
                   }}
@@ -936,7 +954,7 @@ const SimpleFrameEditorPage: React.FC = () => {
                       objectFit: 'cover', 
                       display: 'block',
                       pointerEvents: 'none'
-                    }}
+                    }}}
                     draggable={false}
                   />
                   {/* Delete button on selected */}
