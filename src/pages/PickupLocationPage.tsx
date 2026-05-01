@@ -223,28 +223,36 @@ const PickupLocationPage: React.FC = () => {
   const loadStores = async (params?: StoreQueryParams) => {
     console.log('[PickupLocation] Loading stores with params:', params);
 
-    const [vendorRes, printingRes] = await Promise.allSettled([
-      productService.getNearbyVendorStores(params),
-      productService.getPrintingPickupLocations(params),
-    ]);
+    const hasLatLng = params?.lat !== undefined && params?.lng !== undefined;
+    const hasPincode = !!params?.pincode;
 
+    const promises: Promise<any>[] = [];
+    const sources: string[] = [];
+
+    // Vendor API requires lat+lng
+    if (hasLatLng) {
+      promises.push(productService.getNearbyVendorStores(params));
+      sources.push('vendor');
+    }
+
+    // Printing API requires lat+lng OR pincode OR q
+    if (hasLatLng || hasPincode) {
+      promises.push(productService.getPrintingPickupLocations(params));
+      sources.push('printing');
+    }
+
+    const results = await Promise.allSettled(promises);
     const allStores: any[] = [];
 
-    if (vendorRes.status === 'fulfilled') {
-      const vendorStores = extractStoresFromResponse(vendorRes.value).filter(isStoreVisible);
-      console.log('[PickupLocation] Vendor stores found:', vendorStores.length);
-      allStores.push(...vendorStores);
-    } else {
-      console.error('[PickupLocation] Vendor API failed:', vendorRes.reason);
-    }
-
-    if (printingRes.status === 'fulfilled') {
-      const printingStores = extractStoresFromResponse(printingRes.value).filter(isStoreVisible);
-      console.log('[PickupLocation] Printing pickup stores found:', printingStores.length);
-      allStores.push(...printingStores);
-    } else {
-      console.error('[PickupLocation] Printing pickup API failed:', printingRes.reason);
-    }
+    results.forEach((res, i) => {
+      if (res.status === 'fulfilled') {
+        const stores = extractStoresFromResponse(res.value).filter(isStoreVisible);
+        console.log(`[PickupLocation] ${sources[i]} stores found:`, stores.length);
+        allStores.push(...stores);
+      } else {
+        console.error(`[PickupLocation] ${sources[i]} API failed:`, res.reason);
+      }
+    });
 
     const seen = new Set<string>();
     const uniqueStores: any[] = [];
@@ -263,32 +271,24 @@ const PickupLocationPage: React.FC = () => {
     fetchLocations();
   }, []);
 
-  // Fetch nearby stores first, then fall back to all vendor stores.
+  // Fetch nearby stores first, then fall back to SpeedCopyHub default.
   const fetchLocations = async () => {
     try {
       setLoading(true);
       console.log('[PickupLocation] Fetching pickup locations');
 
-      let queryParams: StoreQueryParams = { limit: 50 };
-      let usedLocationFilter = false;
+      let apiStores: PickupLocation[] = [];
 
       try {
         const pos = await getCurrentPosition();
-        queryParams = { lat: pos.lat, lng: pos.lng, radius: 50, limit: 50 };
-        usedLocationFilter = true;
+        const queryParams: StoreQueryParams = { lat: pos.lat, lng: pos.lng, radius: 50, limit: 50 };
         console.log('[PickupLocation] User location detected:', queryParams);
+        apiStores = await loadStores(queryParams);
       } catch {
-        console.log('[PickupLocation] Location unavailable, loading all vendor stores');
+        console.log('[PickupLocation] Location unavailable, showing default store only');
       }
 
-      let apiStores = await loadStores(queryParams);
-
-      if (apiStores.length === 0 && usedLocationFilter) {
-        console.warn('[PickupLocation] No nearby stores found, retrying all vendor stores');
-        apiStores = await loadStores({ limit: 50 });
-      }
-
-      // Add SpeedCopyHub as a default store
+      // Always show SpeedCopyHub as default
       const speedCopyHub: PickupLocation = {
         id: 'speedcopyhub-main',
         name: 'SpeedCopyHub',
@@ -304,14 +304,16 @@ const PickupLocationPage: React.FC = () => {
         readyTime: 'Ready in 2-4 hrs',
       };
 
-      // Add SpeedCopyHub at the beginning of the list
-      const allLocations = [speedCopyHub, ...apiStores];
-      setLocations(allLocations);
+      // Merge: SpeedCopyHub first, then API stores (deduplicated)
+      const apiIds = new Set(apiStores.map(s => s.id));
+      const merged = apiIds.has('speedcopyhub-main')
+        ? apiStores
+        : [speedCopyHub, ...apiStores];
+
+      setLocations(merged);
     } catch (error) {
       console.error('[PickupLocation] Failed to fetch pickup locations:', error);
-      
-      // Even if API fails, show SpeedCopyHub
-      const speedCopyHub: PickupLocation = {
+      setLocations([{
         id: 'speedcopyhub-main',
         name: 'SpeedCopyHub',
         address: 'Mumbai, Maharashtra - 400001',
@@ -324,8 +326,7 @@ const PickupLocationPage: React.FC = () => {
         icon: 'store',
         estimatedDeliveryTime: 'Ready in 2-4 hrs',
         readyTime: 'Ready in 2-4 hrs',
-      };
-      setLocations([speedCopyHub]);
+      }]);
     } finally {
       setLoading(false);
     }
@@ -353,23 +354,17 @@ const PickupLocationPage: React.FC = () => {
       setZipSearching(true);
       setZipError('');
 
-      let mappedStores = await loadStores({
+      const mappedStores = await loadStores({
         pincode: zip,
-        radius: 50,
         limit: 50,
       });
-
-      if (mappedStores.length === 0) {
-        console.warn('[PickupLocation] No stores found for pincode, loading all vendor stores');
-        mappedStores = await loadStores({ limit: 50 });
-      }
 
       if (mappedStores.length > 0) {
         setLocations(mappedStores);
         setShowNearMePopup(false);
         setZipInput('');
       } else {
-        setZipError('No pickup stores found yet. Please try another pincode later.');
+        setZipError('No pickup stores found for this pincode. Please try another.');
       }
     } catch (error) {
       console.error('[PickupLocation] Pincode search error:', error);
