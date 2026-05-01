@@ -965,7 +965,7 @@ const SimpleFrameEditorPage: React.FC = () => {
                       objectFit: 'cover', 
                       display: 'block',
                       pointerEvents: 'none'
-                    }}}
+                    }}
                     draggable={false}
                   />
                   {/* Delete button on selected */}
