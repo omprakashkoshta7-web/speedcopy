@@ -714,18 +714,51 @@ const DocumentEditorPage: React.FC = () => {
             </div>
 
             <button
-              onClick={exportDocument}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition font-semibold text-sm"
+              onClick={saveAndContinue}
+              className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 flex items-center gap-1.5"
             >
               <Download size={14} />
-              Export
+              Save
             </button>
 
             <button
-              onClick={saveAndContinue}
-              className="flex items-center gap-2 px-4 py-2 bg-[#ff6a3d] text-white rounded-lg hover:bg-[#f35c2c] transition font-semibold text-sm"
+              onClick={() => setShowUploadModal(true)}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 flex items-center gap-1.5"
             >
-              Save & Continue
+              <Upload size={14} />
+              Upload Ready Design
+            </button>
+
+            <button
+              className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition"
+              style={{ backgroundColor: '#111111', color: '#ffffff' }}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Ready for Review
+            </button>
+
+            <button
+              className="px-4 py-2 rounded-lg text-sm font-medium border transition flex items-center gap-1.5"
+              style={{ border: '1.5px solid #e5e7eb', backgroundColor: '#fff', color: '#374151' }}
+            >
+              <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              My Designs
+              {pages.length > 0 && (
+                <span className="bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                  {pages.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={exportDocument}
+              className="px-5 py-2 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600"
+            >
+              Add To Cart
             </button>
           </div>
         </div>
