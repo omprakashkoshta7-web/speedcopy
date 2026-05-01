@@ -288,13 +288,26 @@ const PickupLocationPage: React.FC = () => {
 
       let apiStores: PickupLocation[] = [];
 
+      // Try with user's GPS location first
+      let userLat = 23.1892;
+      let userLng = 79.9296;
+
       try {
         const pos = await getCurrentPosition();
-        const queryParams: StoreQueryParams = { lat: pos.lat, lng: pos.lng, radius: 50, limit: 50 };
-        console.log('[PickupLocation] User location detected:', queryParams);
-        apiStores = await loadStores(queryParams);
+        userLat = pos.lat;
+        userLng = pos.lng;
+        console.log('[PickupLocation] User location detected:', userLat, userLng);
       } catch {
-        console.log('[PickupLocation] Location unavailable, showing default store only');
+        console.log('[PickupLocation] Location unavailable, using default center');
+      }
+
+      // Always call API - first with 50km radius, then with global radius if empty
+      apiStores = await loadStores({ lat: userLat, lng: userLng, radius: 50, limit: 50 });
+
+      // If no stores found nearby, fetch ALL stores with huge radius
+      if (apiStores.length === 0) {
+        console.log('[PickupLocation] No nearby stores, fetching all stores globally...');
+        apiStores = await loadStores({ lat: userLat, lng: userLng, radius: 20000, limit: 50 });
       }
 
       // Always show SpeedCopyHub as default
