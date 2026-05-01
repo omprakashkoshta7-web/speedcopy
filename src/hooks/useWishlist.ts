@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import apiClient from '../services/api.service';
-import { API_CONFIG } from '../config/api.config';
+import wishlistService from '../services/wishlist.service';
 import { useAuth } from '../context/AuthContext';
 
 export function useWishlist() {
@@ -9,12 +8,22 @@ export function useWishlist() {
   const [loading, setLoading] = useState(false);
 
   const fetchWishlist = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      // Load from localStorage even when not authenticated
+      try {
+        const response = await wishlistService.getWishlist();
+        setWishlistIds(response.data.map((item) => item.productId));
+      } catch (err) {
+        console.error('Wishlist fetch error:', err);
+      }
+      return;
+    }
+    
     try {
       setLoading(true);
-      const res = await apiClient.get(API_CONFIG.ENDPOINTS.WISHLIST.GET);
-      const items: Array<{ productId: string }> = res.data?.data || [];
-      setWishlistIds(items.map((i) => i.productId));
+      const response = await wishlistService.getWishlist();
+      setWishlistIds(response.data.map((item) => item.productId));
+      console.log('✅ Wishlist loaded:', response.data.length, 'items');
     } catch (err) {
       console.error('Wishlist fetch error:', err);
     } finally {
@@ -27,34 +36,40 @@ export function useWishlist() {
   }, [fetchWishlist]);
 
   const toggleWishlist = useCallback(
-    async (productId: string, productType = 'shopping') => {
-      if (!isAuthenticated) return;
+    async (productId: string, productType: 'gifting' | 'shopping' | 'printing' | 'business-printing' = 'shopping') => {
+      if (!isAuthenticated) {
+        console.log('⚠️ User not authenticated, using localStorage');
+      }
       
-      setWishlistIds((prev) => {
-        const isInWishlist = prev.includes(productId);
-        const updated = isInWishlist ? prev.filter((id) => id !== productId) : [...prev, productId];
+      try {
+        const isInWishlist = wishlistIds.includes(productId);
         
-        // Make API call
-        (async () => {
-          try {
-            if (isInWishlist) {
-              await apiClient.delete(API_CONFIG.ENDPOINTS.WISHLIST.REMOVE(productId));
-            } else {
-              await apiClient.post(API_CONFIG.ENDPOINTS.WISHLIST.ADD, { productId, productType });
-            }
-          } catch (err) {
-            console.error('Wishlist toggle error:', err);
-            // Revert on error
-            setWishlistIds((prev) =>
-              isInWishlist ? [...prev, productId] : prev.filter((id) => id !== productId)
-            );
-          }
-        })();
+        // Optimistic update
+        setWishlistIds((prev) =>
+          isInWishlist ? prev.filter((id) => id !== productId) : [...prev, productId]
+        );
         
-        return updated;
-      });
+        // Make API call with fallback to localStorage
+        if (isInWishlist) {
+          const response = await wishlistService.removeFromWishlist(productId);
+          console.log('✅ Removed from wishlist:', response.message);
+          setWishlistIds(response.data.map((item) => item.productId));
+        } else {
+          const response = await wishlistService.addToWishlist(productId, productType);
+          console.log('✅ Added to wishlist:', response.message);
+          setWishlistIds(response.data.map((item) => item.productId));
+        }
+      } catch (err) {
+        console.error('Wishlist toggle error:', err);
+        // Revert on error
+        setWishlistIds((prev) =>
+          wishlistIds.includes(productId) 
+            ? [...prev, productId] 
+            : prev.filter((id) => id !== productId)
+        );
+      }
     },
-    [isAuthenticated]
+    [isAuthenticated, wishlistIds]
   );
 
   const isWishlisted = useCallback(

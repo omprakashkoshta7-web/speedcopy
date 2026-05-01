@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import productService from '../services/product.service';
 import orderService from '../services/order.service';
 import { useAuth } from '../context/AuthContext';
+import fileStorageService from '../services/fileStorage.service';
 
 type CounterProps = { value: number; onChange: (v: number) => void };
 type DropdownProps = { label: string; options: string[]; value: string; onChange: (v: string) => void };
@@ -78,14 +79,14 @@ const PrintConfigPage: React.FC = () => {
   const [colorMode, setColorMode] = useState('');
   const [pageSize, setPageSize] = useState('');
   const [printSide, setPrintSide] = useState('');
-  const [bindingType, setBindingType] = useState('');
-  const [coverPage, setCoverPage] = useState('None');
   const [selectedPrintType] = useState('');
   const [instructions, setInstructions] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [filesLoading, setFilesLoading] = useState(true);
+  const [bindingType, setBindingType] = useState('');
+  const [coverPage, setCoverPage] = useState('');
 
   // Pricing configuration
   const pricingConfig = {
@@ -100,13 +101,19 @@ const PrintConfigPage: React.FC = () => {
       '4 in 1 (2 front+2 Back)': 0.8
     },
     graphSheetPrice: 3, // per sheet
+    processingFee: 5,
+    bindingPrice: {
+      'None': 0,
+      'Soft Binding': 15,
+      'Spiral Binding': 25,
+      'Thesis Binding': 50
+    },
     coverPagePrice: {
       'None': 0,
       'Transparent': 5,
       'Colored': 10,
       'Leather-finish': 20
-    },
-    processingFee: 5
+    }
   };
 
   // Calculate total price based on selections
@@ -124,14 +131,18 @@ const PrintConfigPage: React.FC = () => {
       total += baseRate * totalPages * copies * sideMultiplier;
     }
     
-    // Graph sheets cost - FIXED: Only add if user explicitly selected them (not automatically)
-    // Only add graph sheet cost if user has actually selected them
+    // Graph sheets cost
     if (linearSheets > 0 || semiLog > 0) {
       total += (linearSheets + semiLog) * pricingConfig.graphSheetPrice;
     }
     
-    // Cover page cost - only if binding is selected
-    if (bindingType && bindingType !== 'None') {
+    // Binding cost
+    if (bindingType) {
+      total += pricingConfig.bindingPrice[bindingType as keyof typeof pricingConfig.bindingPrice] || 0;
+    }
+    
+    // Cover page cost
+    if (coverPage) {
       total += pricingConfig.coverPagePrice[coverPage as keyof typeof pricingConfig.coverPagePrice] || 0;
     }
     
@@ -147,27 +158,60 @@ const PrintConfigPage: React.FC = () => {
     fetchUploadedFiles();
   }, []);
 
+  // Reload files when page becomes visible (user returns from editor)
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('Page visible, reloading uploaded files...');
+        fetchUploadedFiles();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   const fetchUploadedFiles = async () => {
     try {
       setFilesLoading(true);
-      // Try to get from API first
+      
+      // Initialize IndexedDB
+      await fileStorageService.init();
+      
+      // Try to migrate from localStorage if needed
+      await fileStorageService.migrateFromLocalStorage();
+      
+      // Get files from IndexedDB
+      const files = await fileStorageService.getAllFiles();
+      
+      if (files.length > 0) {
+        console.log(`✅ Loaded ${files.length} files from IndexedDB`);
+        setUploadedFiles(files);
+        return;
+      }
+      
+      // If no files in IndexedDB, try API
       try {
         const response = await productService.getUploadedFiles();
         const apiFiles = response.data || [];
         if (apiFiles.length > 0) {
           setUploadedFiles(apiFiles);
-          // Save to localStorage as backup
-          localStorage.setItem('uploadedFiles', JSON.stringify(apiFiles));
+          // Save to IndexedDB for offline access
+          for (const file of apiFiles) {
+            await fileStorageService.saveFile(file);
+          }
           return;
         }
       } catch (_apiErr) {
-        console.log('API not available, using localStorage');
+        console.log('API not available, using IndexedDB only');
       }
       
-      // Fallback to localStorage
-      const stored = localStorage.getItem('uploadedFiles');
-      setUploadedFiles(stored ? JSON.parse(stored) : []);
-    } catch {
+      setUploadedFiles([]);
+    } catch (error) {
+      console.error('Error fetching files:', error);
       setUploadedFiles([]);
     } finally {
       setFilesLoading(false);
@@ -182,49 +226,127 @@ const PrintConfigPage: React.FC = () => {
     // Process each file
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const reader = new FileReader();
+      
+      // Check file size (warn if > 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        const proceed = confirm(`File "${file.name}" is large (${(file.size / 1024 / 1024).toFixed(2)}MB). This may take time to process. Continue?`);
+        if (!proceed) continue;
+      }
       
       await new Promise<void>((resolve) => {
+        const reader = new FileReader();
         reader.onload = async (e) => {
           let pageCount = 1;
+          let fileData: any;
           
-          // If it's a PDF, extract actual page count
-          if (file.type === 'application/pdf' && e.target?.result) {
+          // For PDF files, count pages
+          if (file.type === 'application/pdf') {
             try {
-              const arrayBuffer = e.target.result as ArrayBuffer;
+              const arrayBuffer = e.target?.result as ArrayBuffer;
+              console.log(`📄 Processing PDF: ${file.name}, size: ${file.size} bytes`);
+              
               const pdfDoc = await PDFDocument.load(arrayBuffer);
               pageCount = pdfDoc.getPageCount();
+              
               console.log(`✅ PDF "${file.name}" has ${pageCount} pages`);
-            } catch (error) {
-              console.error('Failed to parse PDF:', error);
-              // Fallback to estimation
-              pageCount = Math.ceil(file.size / 100000);
+              
+              // Store PDF as base64 for smaller size
+              const base64 = btoa(
+                new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+              );
+              
+              fileData = {
+                id: `${Date.now()}_${i}`,
+                name: file.name,
+                size: file.size,
+                pages: pageCount,
+                uploadedAt: new Date().toISOString(),
+                mimetype: file.type,
+                data: `data:application/pdf;base64,${base64}`,
+              };
+              
+              console.log(`📦 File data created:`, { name: fileData.name, pages: fileData.pages, size: fileData.size });
+            } catch (err) {
+              console.error('❌ PDF processing error:', err);
+              console.error('File details:', { name: file.name, type: file.type, size: file.size });
+              alert(`Failed to process PDF: ${file.name}. Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+              resolve();
+              return;
             }
-          } else {
-            // For non-PDF files, estimate based on size
-            pageCount = Math.ceil(file.size / 100000);
+          } 
+          // For image files, compress them
+          else if (file.type.startsWith('image/')) {
+            try {
+              const dataUrl = e.target?.result as string;
+              // Compress image to reduce storage
+              const compressed = await fileStorageService.compressImage(dataUrl, 1200, 0.8);
+              
+              fileData = {
+                id: `${Date.now()}_${i}`,
+                name: file.name,
+                size: compressed.length, // Use compressed size
+                pages: 1,
+                uploadedAt: new Date().toISOString(),
+                mimetype: 'image/jpeg', // Convert to JPEG
+                data: compressed,
+              };
+            } catch (err) {
+              console.error('Image compression error:', err);
+              alert(`Failed to process image: ${file.name}`);
+              resolve();
+              return;
+            }
+          }
+          // For other files
+          else {
+            fileData = {
+              id: `${Date.now()}_${i}`,
+              name: file.name,
+              size: file.size,
+              pages: 1,
+              uploadedAt: new Date().toISOString(),
+              mimetype: file.type,
+              data: e.target?.result,
+            };
           }
           
-          const fileData = {
-            id: `${Date.now()}_${i}`,
-            name: file.name,
-            size: file.size,
-            pages: pageCount,
-            uploadedAt: new Date().toISOString(),
-            mimetype: file.type,
-            data: e.target?.result,
-          };
           newFiles.push(fileData);
           resolve();
         };
-        reader.readAsArrayBuffer(file);
+        
+        // Read as appropriate format
+        if (file.type === 'application/pdf') {
+          reader.readAsArrayBuffer(file);
+        } else {
+          reader.readAsDataURL(file);
+        }
       });
     }
     
     // Update state with all processed files
     setUploadedFiles(prev => {
       const updated = [...prev, ...newFiles];
-      localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+      
+      // Log the files being added
+      console.log(`📋 Adding ${newFiles.length} files to state:`);
+      newFiles.forEach(f => {
+        console.log(`  - ${f.name}: ${f.pages} pages`);
+      });
+      console.log(`📊 Total files after upload: ${updated.length}`);
+      console.log(`📊 Total pages: ${updated.reduce((sum, file) => sum + (file.pages || 1), 0)}`);
+      
+      // Save to IndexedDB instead of localStorage
+      (async () => {
+        try {
+          for (const file of newFiles) {
+            await fileStorageService.saveFile(file);
+          }
+          console.log(`✅ Saved ${newFiles.length} files to IndexedDB`);
+        } catch (error) {
+          console.error('Failed to save files to IndexedDB:', error);
+          alert('Warning: Files may not be saved permanently. Storage limit may be reached.');
+        }
+      })();
       return updated;
     });
 
@@ -263,7 +385,10 @@ const PrintConfigPage: React.FC = () => {
   const handleDeleteFile = (fileId: string) => {
     setUploadedFiles(prev => {
       const updated = prev.filter(f => f.id !== fileId);
-      localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+      // Delete from IndexedDB
+      fileStorageService.deleteFile(fileId).catch(err => 
+        console.error('Failed to delete file from IndexedDB:', err)
+      );
       return updated;
     });
   };
@@ -271,7 +396,7 @@ const PrintConfigPage: React.FC = () => {
   const buildConfigPayload = () => ({
     productId: productId || undefined,
     printType,
-    options: { copies, colorMode, pageSize, printSide, selectedPrintType, linearSheets, semiLog },
+    options: { copies, colorMode, pageSize, printSide, selectedPrintType, linearSheets, semiLog, bindingType, coverPage },
     specialInstructions: instructions,
   });
 
@@ -307,6 +432,8 @@ const PrintConfigPage: React.FC = () => {
         printSide,
         linearSheets,
         semiLog,
+        bindingType,
+        coverPage,
         uploadedFiles,
         totalPages: uploadedFiles.reduce((sum, file) => sum + (file.pages || 1), 0),
         instructions,
@@ -339,6 +466,8 @@ const PrintConfigPage: React.FC = () => {
         printSide,
         linearSheets,
         semiLog,
+        bindingType,
+        coverPage,
         uploadedFiles,
         totalPages: uploadedFiles.reduce((sum, file) => sum + (file.pages || 1), 0),
         instructions,
@@ -395,8 +524,8 @@ const PrintConfigPage: React.FC = () => {
                   </button>
                   <button 
                     onClick={() => {
-                      // Navigate to canvas editor for document design
-                      navigate(`/canvas-editor?productId=${productId || 'document-print'}&type=document`);
+                      // Navigate to document editor (new dedicated editor for documents)
+                      navigate('/document-editor?type=document');
                     }}
                     type="button"
                     className="px-6 py-2.5 font-bold rounded-full hover:bg-orange-600 transition text-sm text-white" 
@@ -410,9 +539,21 @@ const PrintConfigPage: React.FC = () => {
 
             {/* Uploaded Files */}
             <div className="bg-white rounded-2xl p-4 mb-4" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              <p className="font-bold text-gray-900 mb-3" style={{ fontSize: '14px' }}>
-                Uploaded Files <span className="text-gray-400 font-normal">{uploadedFiles.length}</span>
-              </p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-bold text-gray-900" style={{ fontSize: '14px' }}>
+                  Uploaded Files <span className="text-gray-400 font-normal">({uploadedFiles.length})</span>
+                </p>
+                {uploadedFiles.length > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-lg" style={{ backgroundColor: '#eff6ff' }}>
+                    <svg className="w-4 h-4" style={{ color: '#3b82f6' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span className="text-xs font-bold" style={{ color: '#1e40af' }}>
+                      Total: {uploadedFiles.reduce((sum, file) => sum + (file.pages || 1), 0)} pages
+                    </span>
+                  </div>
+                )}
+              </div>
               {filesLoading ? (
                 <div className="flex items-center justify-center py-6">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
@@ -421,15 +562,18 @@ const PrintConfigPage: React.FC = () => {
                 <div className="space-y-2">
                   {uploadedFiles.map((file: any) => (
                     <div key={file.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ border: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#3b82f620' }}>
-                        <svg className="w-4 h-4" style={{ color: '#3b82f6' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: file.mimetype === 'application/pdf' ? '#ef444420' : '#3b82f620' }}>
+                        <svg className="w-4 h-4" style={{ color: file.mimetype === 'application/pdf' ? '#ef4444' : '#3b82f6' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-gray-900 truncate" style={{ fontSize: '12px' }}>{file.name}</p>
                         <p style={{ fontSize: '11px', color: '#9ca3af' }}>
-                          {file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : 'N/A'} • {file.pages || '?'} pages
+                          {file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : 'N/A'} • 
+                          <span className="font-bold" style={{ color: file.pages > 1 ? '#3b82f6' : '#9ca3af' }}>
+                            {' '}{file.pages || 1} {file.pages === 1 ? 'page' : 'pages'}
+                          </span>
                         </p>
                       </div>
                       <button
@@ -479,9 +623,11 @@ const PrintConfigPage: React.FC = () => {
             <Dropdown label="Color Mode" options={['B&W', 'color', 'Custom']} value={colorMode} onChange={setColorMode} />
             <Dropdown label="Page size" options={['A4', 'A3']} value={pageSize} onChange={setPageSize} />
             <Dropdown label="Print Side" options={['one-sided', 'Two-sided', '4 in 1 (2 front+2 Back)']} value={printSide} onChange={setPrintSide} />
+            
+            {/* Binding Type */}
             <Dropdown label="Binding Type" options={['None', 'Soft Binding', 'Spiral Binding', 'Thesis Binding']} value={bindingType} onChange={setBindingType} />
             
-            {/* Cover Page Options - Show when binding is selected */}
+            {/* Cover Page - Only show if binding type is selected and not "None" */}
             {bindingType && bindingType !== 'None' && (
               <Dropdown label="Cover Page" options={['None', 'Transparent', 'Colored', 'Leather-finish']} value={coverPage} onChange={setCoverPage} />
             )}

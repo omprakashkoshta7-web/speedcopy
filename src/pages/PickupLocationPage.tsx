@@ -16,6 +16,8 @@ type PickupLocation = {
   statusLabel: string;
   amenities: string[];
   icon: string;
+  estimatedDeliveryTime?: string;
+  readyTime?: string;
 };
 
 const filters: Filter[] = ['All Centers', 'Open Now', 'Color Printing', 'Binding Services', '24/7 Access'];
@@ -99,6 +101,13 @@ const mapVendorStoreToLocation = (store: any): PickupLocation => {
       ? 'open247'
       : 'open';
 
+  // Extract delivery time from store data or use default
+  const estimatedDeliveryTime = store?.estimatedDeliveryTime || 
+                                store?.estimated_delivery_time || 
+                                store?.readyTime || 
+                                store?.ready_time || 
+                                'Ready in 2-4 hrs';
+
   return {
     id: getStoreIdentifier(store) || `store-${Date.now()}`,
     name: store?.name || store?.storeName || store?.shopName || store?.businessName || 'SpeedCopy Hub',
@@ -110,6 +119,8 @@ const mapVendorStoreToLocation = (store: any): PickupLocation => {
     statusLabel: isPendingApproval ? 'PENDING APPROVAL' : status === 'closed' ? 'CLOSED' : String(workingHours),
     amenities: Array.isArray(store?.amenities) && store.amenities.length ? store.amenities : ['print', 'wifi', 'parking'],
     icon: 'store',
+    estimatedDeliveryTime,
+    readyTime: estimatedDeliveryTime,
   };
 };
 const getCurrentPosition = () =>
@@ -257,10 +268,44 @@ const PickupLocationPage: React.FC = () => {
         apiStores = await loadStores({ limit: 50 });
       }
 
-      setLocations(apiStores);
+      // Add SpeedCopyHub as a default store
+      const speedCopyHub: PickupLocation = {
+        id: 'speedcopyhub-main',
+        name: 'SpeedCopyHub',
+        address: 'Mumbai, Maharashtra - 400001',
+        distance: 'Nearby',
+        rating: 4.8,
+        reviews: 245,
+        status: 'open247',
+        statusLabel: '24/7 OPEN',
+        amenities: ['print', 'wifi', 'parking'],
+        icon: 'store',
+        estimatedDeliveryTime: 'Ready in 2-4 hrs',
+        readyTime: 'Ready in 2-4 hrs',
+      };
+
+      // Add SpeedCopyHub at the beginning of the list
+      const allLocations = [speedCopyHub, ...apiStores];
+      setLocations(allLocations);
     } catch (error) {
       console.error('[PickupLocation] Failed to fetch pickup locations:', error);
-      setLocations([]);
+      
+      // Even if API fails, show SpeedCopyHub
+      const speedCopyHub: PickupLocation = {
+        id: 'speedcopyhub-main',
+        name: 'SpeedCopyHub',
+        address: 'Mumbai, Maharashtra - 400001',
+        distance: 'Nearby',
+        rating: 4.8,
+        reviews: 245,
+        status: 'open247',
+        statusLabel: '24/7 OPEN',
+        amenities: ['print', 'wifi', 'parking'],
+        icon: 'store',
+        estimatedDeliveryTime: 'Ready in 2-4 hrs',
+        readyTime: 'Ready in 2-4 hrs',
+      };
+      setLocations([speedCopyHub]);
     } finally {
       setLoading(false);
     }
@@ -269,6 +314,8 @@ const PickupLocationPage: React.FC = () => {
     const selectedLocation = locations.find((location) => location.id === locationId);
     if (selectedLocation) {
       sessionStorage.setItem(`pickup_location_${locationId}`, JSON.stringify(selectedLocation));
+      // Also store the delivery time separately for easy access
+      sessionStorage.setItem(`pickup_delivery_time_${locationId}`, selectedLocation.estimatedDeliveryTime || 'Ready in 2-4 hrs');
     }
 
     // Navigate directly to print checkout page with Razorpay payment
@@ -491,7 +538,7 @@ const PickupLocationPage: React.FC = () => {
                         <svg className="w-3 h-3" style={{ color: '#16a34a' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span className="text-xs font-semibold" style={{ color: '#16a34a' }}>Ready in 2-4 hrs</span>
+                        <span className="text-xs font-semibold" style={{ color: '#16a34a' }}>{loc.estimatedDeliveryTime || 'Ready in 2-4 hrs'}</span>
                       </div>
                       {/* Rating */}
                       <div className="flex items-center gap-1">

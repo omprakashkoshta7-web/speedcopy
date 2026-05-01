@@ -99,6 +99,8 @@ const SimpleFrameEditorPage: React.FC = () => {
   const [textBold, setTextBold] = useState(false);
   const [textItalic, setTextItalic] = useState(false);
   const textDragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const readyFileInputRef = useRef<HTMLInputElement>(null);
 
   const productId = searchParams.get('productId');
 
@@ -493,6 +495,69 @@ const SimpleFrameEditorPage: React.FC = () => {
     }
   };
 
+  // Handle ready-to-print file upload
+  const handleReadyFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    for (const file of Array.from(files)) {
+      const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+      if (!validTypes.includes(file.type)) {
+        alert(`File ${file.name} is not supported. Please upload PDF, PNG, or JPG files.`);
+        continue;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const dataUrl = event.target?.result as string;
+        
+        if (file.type.startsWith('image/')) {
+          // Get natural dimensions
+          const dims = await new Promise<{ w: number; h: number }>((res) => {
+            const img = new Image();
+            img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight });
+            img.onerror = () => res({ w: 300, h: 300 });
+            img.src = dataUrl;
+          });
+
+          // Add as a user photo that fills the editor
+          const editorW = editorRef.current?.clientWidth || 600;
+          const editorH = editorRef.current?.clientHeight || 500;
+          const scale = Math.min(editorW / dims.w, editorH / dims.h);
+          const w = dims.w * scale;
+          const h = dims.h * scale;
+
+          const photo: UserPhoto = {
+            id: `ready_${Date.now()}`,
+            dataUrl,
+            x: (editorW - w) / 2,
+            y: (editorH - h) / 2,
+            width: dims.w,
+            height: dims.h,
+            scale,
+            rotation: 0,
+          };
+
+          setUserPhotos([photo]); // Replace all photos with the ready design
+          setSelectedPhotoId(photo.id);
+          alert('✅ Ready-to-print design uploaded! You can now add to cart.');
+        } else if (file.type === 'application/pdf') {
+          alert('PDF uploaded successfully! This will be processed during order fulfillment.');
+          localStorage.setItem('readyPrintFile', JSON.stringify({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: dataUrl
+          }));
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    e.target.value = '';
+    setShowUploadModal(false);
+  };
+
   // ── Loading / Error ───────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -519,6 +584,91 @@ const SimpleFrameEditorPage: React.FC = () => {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
         onChange={e => { void handleUpload(e.target.files); e.currentTarget.value = ''; }} />
+      <input ref={readyFileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg" multiple className="hidden"
+        onChange={handleReadyFileUpload} />
+
+      {/* Upload Ready Design Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowUploadModal(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Upload Ready-to-Print Design</h3>
+            
+            {/* Current Design Preview */}
+            {userPhotos.length > 0 && (
+              <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <p className="text-xs font-semibold text-gray-600 mb-3">📸 Your Current Design Preview:</p>
+                <div className="flex justify-center">
+                  <div
+                    className="relative bg-white shadow-lg rounded-lg overflow-hidden"
+                    style={{ width: '300px', height: '250px' }}
+                  >
+                    {/* Product image */}
+                    {activeProductImage && (
+                      <img
+                        src={activeProductImage}
+                        alt="preview"
+                        className="absolute inset-0 w-full h-full object-contain"
+                        crossOrigin="anonymous"
+                      />
+                    )}
+                    {/* User photo overlay */}
+                    {userPhotos.map(photo => {
+                      const w = photo.width * photo.scale;
+                      const h = photo.height * photo.scale;
+                      return (
+                        <div
+                          key={photo.id}
+                          style={{
+                            position: 'absolute',
+                            left: (photo.x / 600) * 300,
+                            top: (photo.y / 500) * 250,
+                            width: (w / 600) * 300,
+                            height: (h / 500) * 250,
+                            borderRadius: '4px',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <img
+                            src={photo.dataUrl}
+                            alt="preview"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <p className="text-sm text-gray-600 mb-4">
+              Have a print-ready file? Upload it here to skip the design process.
+            </p>
+            <div className="bg-blue-50 rounded-lg p-4 mb-4">
+              <p className="text-xs text-blue-800 font-semibold mb-2">Supported Formats:</p>
+              <ul className="text-xs text-blue-700 space-y-1">
+                <li>• PDF (Recommended)</li>
+                <li>• PNG (300 DPI)</li>
+                <li>• JPG/JPEG (300 DPI)</li>
+              </ul>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => readyFileInputRef.current?.click()}
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold"
+              >
+                Choose Files
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0 shadow-sm">
@@ -546,6 +696,15 @@ const SimpleFrameEditorPage: React.FC = () => {
               </svg>
               Save
               {saveMsg && <span className="text-green-600 text-xs font-semibold">{saveMsg}</span>}
+            </button>
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Upload Ready Design
             </button>
             <button
               onClick={() => { setShowReviewModal(true); setReviewSubmitted(false); }}
@@ -725,7 +884,10 @@ const SimpleFrameEditorPage: React.FC = () => {
             ref={editorRef}
             className="relative bg-white shadow-2xl rounded-lg overflow-hidden select-none"
             style={{ width: '600px', height: '500px', cursor: 'default' }}
-            onClick={() => setSelectedPhotoId(null)}
+            onClick={() => {
+              setSelectedPhotoId(null);
+              setSelectedTextId(null);
+            }}
           >
             {/* Product image — fills the editor */}
             {activeProductImage ? (
@@ -786,31 +948,153 @@ const SimpleFrameEditorPage: React.FC = () => {
                       }}
                     >×</button>
                   )}
-                  {/* Scale handles on selected */}
+                  {/* Corner handles for smooth resizing */}
                   {isSelected && (
                     <>
+                      {/* Top-left corner */}
                       <div
-                        onMouseDown={e => { e.stopPropagation(); scalePhoto(0.9); }}
+                        onMouseDown={e => {
+                          e.stopPropagation();
+                          const startX = e.clientX;
+                          const startY = e.clientY;
+                          const origScale = photo.scale;
+                          const origX = photo.x;
+                          const origY = photo.y;
+                          
+                          const onMove = (ev: MouseEvent) => {
+                            const dx = ev.clientX - startX;
+                            const dy = ev.clientY - startY;
+                            const delta = Math.max(dx, dy) * 0.005;
+                            const newScale = Math.max(0.1, origScale + delta);
+                            setUserPhotos(prev => prev.map(p =>
+                              p.id === photo.id
+                                ? { ...p, scale: newScale, x: origX - (photo.width * (newScale - origScale)) / 2, y: origY - (photo.height * (newScale - origScale)) / 2 }
+                                : p
+                            ));
+                          };
+                          const onUp = () => {
+                            window.removeEventListener('mousemove', onMove);
+                            window.removeEventListener('mouseup', onUp);
+                          };
+                          window.addEventListener('mousemove', onMove);
+                          window.addEventListener('mouseup', onUp);
+                        }}
                         style={{
-                          position: 'absolute', bottom: -10, left: -10,
-                          width: 18, height: 18, borderRadius: '50%',
-                          background: '#ff6a3d', color: '#fff',
-                          cursor: 'pointer', fontSize: 16,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          position: 'absolute', top: -8, left: -8,
+                          width: 16, height: 16, borderRadius: '50%',
+                          background: '#ff6a3d', border: '2px solid white',
+                          cursor: 'nwse-resize', boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
                           zIndex: 20,
                         }}
-                      >−</div>
+                      />
+                      {/* Top-right corner */}
                       <div
-                        onMouseDown={e => { e.stopPropagation(); scalePhoto(1.1); }}
+                        onMouseDown={e => {
+                          e.stopPropagation();
+                          const startX = e.clientX;
+                          const startY = e.clientY;
+                          const origScale = photo.scale;
+                          const origX = photo.x;
+                          const origY = photo.y;
+                          
+                          const onMove = (ev: MouseEvent) => {
+                            const dx = ev.clientX - startX;
+                            const dy = ev.clientY - startY;
+                            const delta = Math.max(dx, -dy) * 0.005;
+                            const newScale = Math.max(0.1, origScale + delta);
+                            setUserPhotos(prev => prev.map(p =>
+                              p.id === photo.id
+                                ? { ...p, scale: newScale, x: origX - (photo.width * (newScale - origScale)) / 2, y: origY - (photo.height * (newScale - origScale)) / 2 }
+                                : p
+                            ));
+                          };
+                          const onUp = () => {
+                            window.removeEventListener('mousemove', onMove);
+                            window.removeEventListener('mouseup', onUp);
+                          };
+                          window.addEventListener('mousemove', onMove);
+                          window.addEventListener('mouseup', onUp);
+                        }}
                         style={{
-                          position: 'absolute', bottom: -10, right: -10,
-                          width: 18, height: 18, borderRadius: '50%',
-                          background: '#ff6a3d', color: '#fff',
-                          cursor: 'pointer', fontSize: 16,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          position: 'absolute', top: -8, right: -8,
+                          width: 16, height: 16, borderRadius: '50%',
+                          background: '#ff6a3d', border: '2px solid white',
+                          cursor: 'nesw-resize', boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
                           zIndex: 20,
                         }}
-                      >+</div>
+                      />
+                      {/* Bottom-left corner */}
+                      <div
+                        onMouseDown={e => {
+                          e.stopPropagation();
+                          const startX = e.clientX;
+                          const startY = e.clientY;
+                          const origScale = photo.scale;
+                          const origX = photo.x;
+                          const origY = photo.y;
+                          
+                          const onMove = (ev: MouseEvent) => {
+                            const dx = ev.clientX - startX;
+                            const dy = ev.clientY - startY;
+                            const delta = Math.max(-dx, dy) * 0.005;
+                            const newScale = Math.max(0.1, origScale + delta);
+                            setUserPhotos(prev => prev.map(p =>
+                              p.id === photo.id
+                                ? { ...p, scale: newScale, x: origX - (photo.width * (newScale - origScale)) / 2, y: origY - (photo.height * (newScale - origScale)) / 2 }
+                                : p
+                            ));
+                          };
+                          const onUp = () => {
+                            window.removeEventListener('mousemove', onMove);
+                            window.removeEventListener('mouseup', onUp);
+                          };
+                          window.addEventListener('mousemove', onMove);
+                          window.addEventListener('mouseup', onUp);
+                        }}
+                        style={{
+                          position: 'absolute', bottom: -8, left: -8,
+                          width: 16, height: 16, borderRadius: '50%',
+                          background: '#ff6a3d', border: '2px solid white',
+                          cursor: 'nesw-resize', boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                          zIndex: 20,
+                        }}
+                      />
+                      {/* Bottom-right corner */}
+                      <div
+                        onMouseDown={e => {
+                          e.stopPropagation();
+                          const startX = e.clientX;
+                          const startY = e.clientY;
+                          const origScale = photo.scale;
+                          const origX = photo.x;
+                          const origY = photo.y;
+                          
+                          const onMove = (ev: MouseEvent) => {
+                            const dx = ev.clientX - startX;
+                            const dy = ev.clientY - startY;
+                            const delta = Math.max(dx, dy) * 0.005;
+                            const newScale = Math.max(0.1, origScale + delta);
+                            setUserPhotos(prev => prev.map(p =>
+                              p.id === photo.id
+                                ? { ...p, scale: newScale, x: origX - (photo.width * (newScale - origScale)) / 2, y: origY - (photo.height * (newScale - origScale)) / 2 }
+                                : p
+                            ));
+                          };
+                          const onUp = () => {
+                            window.removeEventListener('mousemove', onMove);
+                            window.removeEventListener('mouseup', onUp);
+                          };
+                          window.addEventListener('mousemove', onMove);
+                          window.addEventListener('mouseup', onUp);
+                        }}
+                        style={{
+                          position: 'absolute', bottom: -8, right: -8,
+                          width: 16, height: 16, borderRadius: '50%',
+                          background: '#ff6a3d', border: '2px solid white',
+                          cursor: 'nwse-resize', boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                          zIndex: 20,
+                        }}
+                      />
                     </>
                   )}
                 </div>

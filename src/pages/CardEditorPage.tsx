@@ -16,6 +16,8 @@ const CardEditorPage: React.FC = () => {
   const [selectedLayout, setSelectedLayout] = useState('horizontal');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [imagePosition, setImagePosition] = useState<'left' | 'right' | 'background' | 'logo'>('logo');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const readyFileInputRef = useRef<HTMLInputElement>(null);
 
   // Load product image from URL param on mount
   useEffect(() => {
@@ -195,9 +197,87 @@ const CardEditorPage: React.FC = () => {
     navigate('/business-card-checkout', { state: { cardDesign: designData } });
   };
 
+  // Handle ready-to-print file upload
+  const handleReadyFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const file = files[0]; // Take first file only for card
+    const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload PDF, PNG, or JPG files only.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      
+      if (file.type.startsWith('image/')) {
+        setUploadedImage(dataUrl);
+        setImagePosition('background');
+        setSelectedTemplate('match');
+        alert('✅ Ready-to-print card design uploaded! You can now add to cart.');
+      } else if (file.type === 'application/pdf') {
+        alert('PDF uploaded successfully! This will be processed during order fulfillment.');
+        localStorage.setItem('readyPrintFile', JSON.stringify({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: dataUrl
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+
+    e.target.value = '';
+    setShowUploadModal(false);
+  };
+
   return (
     <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
       <Navbar />
+
+      {/* Upload Ready Design Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowUploadModal(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Upload Ready-to-Print Card</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Have a print-ready business card design? Upload it here.
+            </p>
+            <div className="bg-blue-50 rounded-lg p-4 mb-4">
+              <p className="text-xs text-blue-800 font-semibold mb-2">Supported Formats:</p>
+              <ul className="text-xs text-blue-700 space-y-1">
+                <li>• PDF (Recommended)</li>
+                <li>• PNG (300 DPI)</li>
+                <li>• JPG/JPEG (300 DPI)</li>
+              </ul>
+            </div>
+            <input
+              ref={readyFileInputRef}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg"
+              onChange={handleReadyFileUpload}
+              className="hidden"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => readyFileInputRef.current?.click()}
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold"
+              >
+                Choose File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
@@ -214,6 +294,13 @@ const CardEditorPage: React.FC = () => {
             <h1 className="font-bold text-gray-900 text-xl">Card Editor</h1>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-500 text-white rounded-full font-semibold text-sm hover:bg-blue-600 transition"
+            >
+              <Upload size={16} />
+              Upload Ready Card
+            </button>
             <button
               onClick={handleDownload}
               className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-full font-semibold text-sm hover:bg-gray-50 transition"

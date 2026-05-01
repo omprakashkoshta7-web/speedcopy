@@ -267,11 +267,24 @@ class OrderService {
   async createOrder(data: CreateOrderData): Promise<{ success: boolean; data: Order; message: string }> {
     try {
       console.log('📦 Creating order:', { ...data, items: `${data.items.length} items` });
+      console.log('📦 Full order data:', JSON.stringify(data, null, 2));
       const response = await apiClient.post(API_CONFIG.ENDPOINTS.ORDERS.CREATE, data);
       console.log('✅ Order created:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Create order failed:', error);
+      console.error('❌ Error response:', error?.response?.data);
+      console.error('❌ Error status:', error?.response?.status);
+      console.error('❌ Error message:', error?.message);
+      
+      // Log validation errors if present
+      if (error?.response?.data?.errors) {
+        console.error('❌ Validation errors:', error.response.data.errors);
+        error.response.data.errors.forEach((err: any, index: number) => {
+          console.error(`   ${index + 1}. ${err.field || 'Field'}: ${err.message || err}`);
+        });
+      }
+      
       throw error;
     }
   }

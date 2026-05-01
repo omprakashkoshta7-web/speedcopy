@@ -512,49 +512,49 @@ const BusinessCardCheckoutPage: React.FC = () => {
             </div>
 
             {/* Payment Method */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-200">
-              <h2 className="font-bold text-gray-900 text-lg mb-4">Payment Method</h2>
-              <div className="space-y-3">
+            <div className="bg-white rounded-xl p-4 border border-gray-200">
+              <h2 className="font-bold text-gray-900 text-sm mb-2.5">Payment Method</h2>
+              <div className="space-y-1.5">
                 <button
                   onClick={() => setPaymentMethod('razorpay')}
-                  className={`w-full p-4 rounded-xl border-2 transition text-left ${
+                  className={`w-full p-2.5 rounded-lg border-2 transition text-left ${
                     paymentMethod === 'razorpay'
                       ? 'border-gray-900 bg-gray-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <CreditCard size={20} className="text-blue-600" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <CreditCard size={14} className="text-blue-600" />
                     </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900">Razorpay</p>
-                      <p className="text-sm text-gray-500">UPI, Cards, Net Banking</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-xs">Razorpay</p>
+                      <p className="text-xs text-gray-500">UPI, Cards, Net Banking</p>
                     </div>
                     {paymentMethod === 'razorpay' && (
-                      <Check size={20} className="text-green-600" />
+                      <Check size={16} className="text-green-600 flex-shrink-0" />
                     )}
                   </div>
                 </button>
 
                 <button
                   onClick={() => setPaymentMethod('wallet')}
-                  className={`w-full p-4 rounded-xl border-2 transition text-left ${
+                  className={`w-full p-2.5 rounded-lg border-2 transition text-left ${
                     paymentMethod === 'wallet'
                       ? 'border-gray-900 bg-gray-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                      <Wallet size={20} className="text-purple-600" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                      <Wallet size={14} className="text-purple-600" />
                     </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900">Wallet</p>
-                      <p className="text-sm text-gray-500">Pay from wallet balance</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-xs">Wallet</p>
+                      <p className="text-xs text-gray-500">Pay from wallet balance</p>
                     </div>
                     {paymentMethod === 'wallet' && (
-                      <Check size={20} className="text-green-600" />
+                      <Check size={16} className="text-green-600 flex-shrink-0" />
                     )}
                   </div>
                 </button>

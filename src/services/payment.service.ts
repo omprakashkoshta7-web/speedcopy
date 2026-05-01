@@ -360,23 +360,10 @@ class PaymentService {
         name: options.name,
         description: options.description,
         prefill: this.getPrefillDetails(),
-        method: {
-          upi: true,
-          card: true,
-          netbanking: true,
-          wallet: true,
-          emi: true,
-          paylater: true,
-        },
-        config: {
-          display: {
-            language: 'en',
-          },
-        },
         theme: { color: '#111111' },
         notes: {
           receipt: options.receipt || options.orderId || `payment_${Date.now()}`,
-          purpose: options.purpose || 'order_payment', // Use provided purpose or default to order_payment
+          purpose: options.purpose || 'order_payment',
         },
         handler: (response: any) => {
           console.log('✅ Razorpay payment success:', response);

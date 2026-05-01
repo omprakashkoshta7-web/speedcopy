@@ -8,10 +8,10 @@ import paymentService from '../services/payment.service';
 import productService, { extractStoresFromResponse, getStoreIdentifier } from '../services/product.service';
 import orderService from '../services/order.service';
 
-type PaymentMethod = 'card' | 'upi' | 'netbanking' | 'wallet';
+type PaymentMethod = 'razorpay' | 'wallet';
 
 const PrintCheckoutPage: React.FC = () => {
-  const [method, setMethod] = useState<PaymentMethod>('upi');
+  const [method, setMethod] = useState<PaymentMethod>('razorpay');
   const [wallet, setWallet] = useState<any>(null);
   const [pickupLocation, setPickupLocation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -114,7 +114,19 @@ const PrintCheckoutPage: React.FC = () => {
         '4 in 1 (2 front+2 Back)': 0.8
       },
       graphSheetPrice: 3,
-      processingFee: 5
+      processingFee: 5,
+      bindingPrice: {
+        'None': 0,
+        'Soft Binding': 15,
+        'Spiral Binding': 25,
+        'Thesis Binding': 50
+      },
+      coverPagePrice: {
+        'None': 0,
+        'Transparent': 5,
+        'Colored': 10,
+        'Leather-finish': 20
+      }
     };
     
     let total = 0;
@@ -127,6 +139,8 @@ const PrintCheckoutPage: React.FC = () => {
     const totalPages = printConfig.totalPages || 0;
     const linearSheets = printConfig.linearSheets || 0;
     const semiLog = printConfig.semiLog || 0;
+    const bindingType = printConfig.bindingType || 'None';
+    const coverPage = printConfig.coverPage || 'None';
     
     if (colorMode && pageSize) {
       const baseRate = pricingConfig.basePrice[colorMode as keyof typeof pricingConfig.basePrice]?.[pageSize as 'A4' | 'A3'] || 2;
@@ -136,6 +150,12 @@ const PrintCheckoutPage: React.FC = () => {
     
     // Graph sheets cost
     total += (linearSheets + semiLog) * pricingConfig.graphSheetPrice;
+    
+    // Binding cost
+    total += pricingConfig.bindingPrice[bindingType as keyof typeof pricingConfig.bindingPrice] || 0;
+    
+    // Cover page cost
+    total += pricingConfig.coverPagePrice[coverPage as keyof typeof pricingConfig.coverPagePrice] || 0;
     
     // Processing fee
     total += pricingConfig.processingFee;
@@ -170,6 +190,7 @@ const PrintCheckoutPage: React.FC = () => {
         return;
       }
 
+      // Check wallet balance only if wallet payment is selected
       if (method === 'wallet') {
         const walletBalance = wallet?.balance || 0;
         if (walletBalance < totalAmount) {
@@ -180,52 +201,97 @@ const PrintCheckoutPage: React.FC = () => {
       }
 
       if (isAuthenticated) {
-        const orderData = {
+        // Validate pickup location has required fields
+        if (!pickupLocation) {
+          alert('Please select a pickup location before proceeding.');
+          setProcessing(false);
+          return;
+        }
+
+        // Ensure phone number is present and valid
+        let phoneNumber = pickupLocation?.phone || pickupLocation?.contact || '';
+        
+        // Clean phone number (remove spaces, dashes, etc.)
+        phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
+        
+        // If phone is still empty or invalid, use a default
+        if (!phoneNumber || phoneNumber.length < 10) {
+          phoneNumber = '9999999999';  // Valid default instead of 0000000000
+        }
+        
+        // Ensure address is properly formatted
+        let addressLine1 = '';
+        
+        // Try to get a proper address line
+        if (pickupLocation?.address) {
+          if (typeof pickupLocation.address === 'string') {
+            addressLine1 = pickupLocation.address;
+          } else if (pickupLocation.address.line1) {
+            addressLine1 = pickupLocation.address.line1;
+          } else {
+            // Build address from components
+            const parts = [
+              pickupLocation.address.street,
+              pickupLocation.address.area,
+              pickupLocation.address.landmark
+            ].filter(Boolean);
+            addressLine1 = parts.join(', ') || 'Store Address';
+          }
+        }
+        
+        // Fallback to store name if no address
+        if (!addressLine1 || addressLine1.trim() === '') {
+          addressLine1 = pickupLocation?.name || 'Pickup Location';
+        }
+        
+        // Validate address is not just city/state/pincode
+        if (addressLine1.includes('Mumbai, Maharashtra') && addressLine1.length < 30) {
+          addressLine1 = `${pickupLocation?.name || 'Store'}, ${addressLine1}`;
+        }
+
+        // Build order data with only required fields
+        const orderData: any = {
           items: [{
             productId: 'print-job',
             productName: 'Document Printing',
             flowType: 'printing' as const,
             quantity: printConfig.copies || 1,
-            unitPrice: totalAmount / (printConfig.copies || 1),
-            totalPrice: totalAmount,
-            printConfig: {
-              paperSize: printConfig.pageSize || 'A4',
-              paperType: printConfig.paperType || 'Standard',
-              colorOption: printConfig.colorMode || 'B&W',
-              bindingType: printConfig.bindingType || 'None',
-              sides: printConfig.printSide || 'one-sided',
-              copies: printConfig.copies || 1,
-              pages: printConfig.totalPages || 0,
-            },
+            unitPrice: Math.round(totalAmount / (printConfig.copies || 1)),
+            totalPrice: Math.round(totalAmount),
           }],
-          shippingAddress: pickupLocation ? {
-            fullName: pickupLocation.name || 'Pickup Location',
-            phone: pickupLocation.phone || '',
-            line1: formatStoreAddress(pickupLocation.address),
-            line2: '',
-            city: pickupLocation.city || pickupLocation.address?.city || 'Mumbai',
-            state: pickupLocation.state || pickupLocation.address?.state || 'Maharashtra',
-            pincode: pickupLocation.pincode || pickupLocation.pinCode || pickupLocation.address?.pincode || '400001',
-            country: 'India',
-          } : {
-            fullName: 'Pickup Location',
-            phone: '',
-            line1: 'Store Pickup',
-            line2: '',
-            city: 'Mumbai',
-            state: 'Maharashtra',
-            pincode: '400001',
-            country: 'India',
+          shippingAddress: {
+            fullName: pickupLocation?.name || 'Pickup Location',
+            phone: phoneNumber,
+            line1: addressLine1,
+            city: pickupLocation?.city || pickupLocation?.address?.city || 'Mumbai',
+            state: pickupLocation?.state || pickupLocation?.address?.state || 'Maharashtra',
+            pincode: String(pickupLocation?.pincode || pickupLocation?.pinCode || pickupLocation?.address?.pincode || '400001'),
           },
-          pickupShopId: locationId || undefined,
-          subtotal: totalAmount,
-          discount: 0,
-          deliveryCharge: 0,
-          total: totalAmount,
-          paymentMethod: method,
-          notes: `Pickup at: ${pickupLocation?.name || 'Store'} | Print Config: ${printConfig?.totalPages || 0} pages, ${printConfig?.copies || 1} copies, ${printConfig?.colorMode || 'B&W'}`,
+          subtotal: Math.round(totalAmount),
+          total: Math.round(totalAmount),
         };
 
+        // Add optional fields only if they have values
+        // Only add pickupShopId if it's a valid MongoDB ObjectId (24 hex characters)
+        if (locationId && /^[0-9a-fA-F]{24}$/.test(locationId)) {
+          orderData.pickupShopId = locationId;
+        }
+        
+        // Add discount and delivery charge (set to 0)
+        orderData.discount = 0;
+        orderData.deliveryCharge = 0;
+        
+        // Add payment method
+        if (method && method !== 'upi') {
+          orderData.paymentMethod = method;
+        }
+
+        console.log('🔍 Order data before sending:', JSON.stringify(orderData, null, 2));
+        console.log('🔍 Print config:', printConfig);
+        console.log('🔍 Pickup location:', pickupLocation);
+        console.log('🔍 Total amount:', totalAmount);
+
+        // Create order based on payment method
         if (method === 'wallet') {
           const response = await orderService.createOrder(orderData);
           const createdOrderId = response.data?._id;
@@ -236,6 +302,7 @@ const PrintCheckoutPage: React.FC = () => {
             throw new Error('Order creation failed');
           }
         } else {
+          // Razorpay payment for card, UPI, netbanking
           await handleRazorpayPayment(orderData, totalAmount);
         }
       } else {
@@ -245,14 +312,23 @@ const PrintCheckoutPage: React.FC = () => {
     } catch (err: any) {
       console.error('❌ Payment error:', err);
       
-      // Don't show error for user cancellation
-      if (err.message === 'Payment cancelled by user') {
-        // User cancelled, just return without showing error
-        return;
+      // Extract validation errors if present
+      let errorMessage = 'Payment failed. Please try again.';
+      if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+        const errors = err.response.data.errors;
+        console.error('❌ Validation errors:', errors);
+        
+        // Show first error to user
+        if (errors.length > 0) {
+          const firstError = errors[0];
+          errorMessage = `Validation failed: ${firstError.field || 'Field'} - ${firstError.message || firstError}`;
+        }
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.message) {
+        errorMessage = err.message;
       }
       
-      // Show user-friendly error message
-      const errorMessage = err.message || 'Payment failed. Please try again.';
       alert(`Payment failed: ${errorMessage}`);
     } finally {
       setProcessing(false);
@@ -263,7 +339,7 @@ const PrintCheckoutPage: React.FC = () => {
     try {
       console.log('🎯 Starting Razorpay payment for amount:', totalAmount);
 
-      // 1) Initiate via wallet service (same as AddFundsPage)
+      // 1) Initiate via wallet service
       const initiateRes = await walletService.initiateRazorpay(totalAmount, `print_${Date.now()}`);
       const paymentData = initiateRes.data;
 
@@ -283,20 +359,21 @@ const PrintCheckoutPage: React.FC = () => {
 
       console.log('✅ Payment completed, creating order...');
 
-      // 3) Create order with payment details
-      const finalOrderData = {
-        ...orderData,
-        razorpayPaymentId: checkoutResult.razorpayPaymentId,
-        razorpayOrderId: checkoutResult.razorpayOrderId || paymentData.razorpayOrderId,
-        razorpaySignature: checkoutResult.razorpaySignature,
-        paymentStatus: 'completed',
-      };
-
-      const response = await orderService.createOrder(finalOrderData);
+      // 3) Create order after successful payment
+      const response = await orderService.createOrder(orderData);
       const createdOrderId = response.data?._id;
 
       if (createdOrderId) {
         console.log('✅ Order created successfully:', createdOrderId);
+        
+        // Store payment details separately for reference
+        sessionStorage.setItem(`order_payment_${createdOrderId}`, JSON.stringify({
+          razorpayPaymentId: checkoutResult.razorpayPaymentId,
+          razorpayOrderId: checkoutResult.razorpayOrderId || paymentData.razorpayOrderId,
+          razorpaySignature: checkoutResult.razorpaySignature,
+          paymentStatus: 'completed',
+        }));
+        
         navigate(`/payment-success?orderId=${createdOrderId}&paymentId=${checkoutResult.razorpayPaymentId}`);
       } else {
         throw new Error('Order creation failed after payment');
@@ -381,6 +458,15 @@ const PrintCheckoutPage: React.FC = () => {
                       {pickupLocation.phone && (
                         <p className="text-sm text-gray-500 mt-2">📞 {pickupLocation.phone}</p>
                       )}
+                      {/* Display Estimated Delivery Time */}
+                      <div className="flex items-center gap-2 mt-3 pt-3" style={{ borderTop: '1px solid #f3f4f6' }}>
+                        <svg className="w-4 h-4" style={{ color: '#16a34a' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm font-semibold" style={{ color: '#16a34a' }}>
+                          {pickupLocation.estimatedDeliveryTime || sessionStorage.getItem(`pickup_delivery_time_${locationId}`) || 'Ready in 2-4 hrs'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -401,67 +487,46 @@ const PrintCheckoutPage: React.FC = () => {
 
             {/* Payment Method */}
             <h2 className="font-bold text-gray-900 mb-1" style={{ fontSize: '20px' }}>Payment Method</h2>
-            <p className="text-sm mb-6" style={{ color: '#9ca3af' }}>Choose your preferred payment method.</p>
+            <p className="text-sm mb-6" style={{ color: '#9ca3af' }}>All payment options will be available in the next step.</p>
 
-            {/* Card Payment */}
-            <div className="rounded-2xl mb-3" style={{ border: method === 'card' ? '2px solid #111111' : '1.5px solid #e5e7eb', backgroundColor: method === 'card' ? '#fafafa' : '#ffffff' }}>
-              <button onClick={() => setMethod('card')} className="w-full flex items-center justify-between px-5 py-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#f3f4f6' }}>
-                    <svg className="w-5 h-5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {/* Single Payment Option - Razorpay handles all methods */}
+            <div className="rounded-xl mb-2" style={{ border: '2px solid #111111', backgroundColor: '#fafafa' }}>
+              <div className="w-full flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
+                    <svg className="w-3.5 h-3.5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                     </svg>
                   </div>
-                  <div className="text-left">
-                    <p className="font-bold text-gray-900" style={{ fontSize: '14px' }}>Credit / Debit Card</p>
-                    <p className="text-xs" style={{ color: '#9ca3af' }}>Visa, Mastercard, RuPay</p>
+                  <div className="text-left min-w-0">
+                    <p className="font-semibold text-gray-900" style={{ fontSize: '11px' }}>Pay with Razorpay</p>
+                    <p style={{ color: '#9ca3af', fontSize: '9px' }}>UPI, Cards, Net Banking & More</p>
                   </div>
                 </div>
-                <div className="w-5 h-5 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: method === 'card' ? '#111111' : 'transparent', border: method === 'card' ? 'none' : '1.5px solid #d1d5db' }}>
-                  {method === 'card' && <div className="w-2 h-2 rounded-full bg-white" />}
+                <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: '#111111', border: 'none' }}>
+                  <div className="w-1.5 h-1.5 rounded-full bg-white" />
                 </div>
-              </button>
+              </div>
             </div>
 
-            {/* UPI Payment */}
-            <div className="rounded-2xl mb-3" style={{ border: method === 'upi' ? '2px solid #111111' : '1.5px solid #e5e7eb', backgroundColor: method === 'upi' ? '#fafafa' : '#ffffff' }}>
-              <button onClick={() => setMethod('upi')} className="w-full flex items-center justify-between px-5 py-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#f3f4f6' }}>
-                    <svg className="w-5 h-5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <p className="font-bold text-gray-900" style={{ fontSize: '14px' }}>UPI</p>
-                    <p className="text-xs" style={{ color: '#9ca3af' }}>Google Pay, PhonePe, Paytm</p>
-                  </div>
-                </div>
-                <div className="w-5 h-5 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: method === 'upi' ? '#111111' : 'transparent', border: method === 'upi' ? 'none' : '1.5px solid #d1d5db' }}>
-                  {method === 'upi' && <div className="w-2 h-2 rounded-full bg-white" />}
-                </div>
-              </button>
-            </div>
-
-            {/* Wallet */}
-            <div className="rounded-2xl mb-3" style={{ border: method === 'wallet' ? '2px solid #111111' : '1.5px solid #e5e7eb', backgroundColor: method === 'wallet' ? '#fafafa' : '#ffffff' }}>
-              <button onClick={() => setMethod('wallet')} className="w-full flex items-center justify-between px-5 py-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#f3f4f6' }}>
-                    <svg className="w-5 h-5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {/* Wallet Option */}
+            <div className="rounded-xl mb-2 mt-4" style={{ border: method === 'wallet' ? '2px solid #111111' : '1.5px solid #e5e7eb', backgroundColor: method === 'wallet' ? '#fafafa' : '#ffffff' }}>
+              <button onClick={() => setMethod('wallet')} className="w-full flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
+                    <svg className="w-3.5 h-3.5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                     </svg>
                   </div>
-                  <div className="text-left">
-                    <p className="font-bold text-gray-900" style={{ fontSize: '14px' }}>SpeedWallet</p>
-                    <p className="text-xs" style={{ color: '#9ca3af' }}>Balance: ₹{(wallet?.balance || 0).toFixed(2)}</p>
+                  <div className="text-left min-w-0">
+                    <p className="font-semibold text-gray-900" style={{ fontSize: '11px' }}>SpeedWallet</p>
+                    <p style={{ color: '#9ca3af', fontSize: '9px' }}>Balance: ₹{(wallet?.balance || 0).toFixed(2)}</p>
                   </div>
                 </div>
-                <div className="w-5 h-5 rounded-full flex items-center justify-center"
+                <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: method === 'wallet' ? '#111111' : 'transparent', border: method === 'wallet' ? 'none' : '1.5px solid #d1d5db' }}>
-                  {method === 'wallet' && <div className="w-2 h-2 rounded-full bg-white" />}
+                  {method === 'wallet' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                 </div>
               </button>
             </div>
@@ -486,6 +551,23 @@ const PrintCheckoutPage: React.FC = () => {
                       </p>
                     </div>
                     <p className="text-sm font-semibold text-gray-900">₹{totalAmount.toFixed(2)}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Estimated Delivery Time */}
+              {pickupLocation && (
+                <div className="mb-4 pb-4" style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: '#f0fdf4' }}>
+                    <svg className="w-4 h-4" style={{ color: '#16a34a' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="text-xs font-semibold" style={{ color: '#16a34a' }}>Estimated Ready Time</p>
+                      <p className="text-sm font-bold text-gray-900">
+                        {pickupLocation.estimatedDeliveryTime || sessionStorage.getItem(`pickup_delivery_time_${locationId}`) || 'Ready in 2-4 hrs'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

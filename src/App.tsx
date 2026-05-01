@@ -9,7 +9,7 @@ import AuthStatusBanner from './components/AuthStatusBanner';
 import LoginModal from './components/LoginModal';
 
 // Editor routes jahan login banner nahi dikhana
-const EDITOR_ROUTES = ['/design-editor', '/simple-frame-editor', '/canvas-editor', '/card-editor'];
+const EDITOR_ROUTES = ['/design-editor', '/simple-frame-editor', '/canvas-editor', '/document-editor', '/card-editor'];
 
 // AuthStatusBanner wrapper — editor pages pe hide karo
 function AuthStatusBannerWrapper({ onLoginClick }: { onLoginClick: () => void }) {
@@ -110,6 +110,7 @@ const ContactPage = lazy(() => import('./pages/ContactPage'));
 const CardEditorPage = lazy(() => import('./pages/CardEditorPage'));
 const BusinessCardCheckoutPage = lazy(() => import('./pages/BusinessCardCheckoutPage'));
 const CanvasEditorPage = lazy(() => import('./pages/CanvasEditorPage'));
+const DocumentEditorPage = lazy(() => import('./pages/DocumentEditorPage'));
 
 const RouteFallback: React.FC = () => (
   <div
@@ -165,6 +166,7 @@ const App: React.FC = () => {
           <Route path="/products" element={<ProductListPage />} />
           <Route path="/design-editor" element={<DesignEditorPage />} />
           <Route path="/canvas-editor" element={<CanvasEditorPage />} />
+          <Route path="/document-editor" element={<DocumentEditorPage />} />
           <Route path="/simple-frame-editor" element={<SimpleFrameEditorPage />} />
           <Route path="/frame-editor-test" element={<FrameEditorTestPage />} />
           <Route path="/add-funds" element={<AddFundsPage />} />

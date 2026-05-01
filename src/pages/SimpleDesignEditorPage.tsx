@@ -30,6 +30,8 @@ const SimpleDesignEditorPage: React.FC = () => {
   const [textInput, setTextInput] = useState('Add your text');
   const [fontSize, setFontSize] = useState(24);
   const [textColor, setTextColor] = useState('#000000');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const readyFileInputRef = useRef<HTMLInputElement>(null);
 
   // Get productId from URL
   const productId = searchParams.get('productId');
@@ -198,6 +200,66 @@ const SimpleDesignEditorPage: React.FC = () => {
     }
   };
 
+  // Handle ready-to-print file upload
+  const handleReadyFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !canvas) return;
+
+    for (const file of Array.from(files)) {
+      // Check file type
+      const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+      if (!validTypes.includes(file.type)) {
+        alert(`File ${file.name} is not a supported format. Please upload PDF, PNG, or JPG files.`);
+        continue;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        
+        // If it's an image, load it directly to canvas
+        if (file.type.startsWith('image/')) {
+          fabric.FabricImage.fromURL(dataUrl, { crossOrigin: 'anonymous' })
+            .then((img) => {
+              // Scale to fit canvas
+              const scale = Math.min(
+                (canvas.width || 600) / (img.width || 1),
+                (canvas.height || 400) / (img.height || 1)
+              );
+              img.scale(scale);
+              img.set({
+                left: 0,
+                top: 0,
+                selectable: false,
+                evented: false,
+              });
+              
+              // Clear canvas and add the ready-to-print design
+              canvas.clear();
+              canvas.add(img);
+              canvas.renderAll();
+              
+              alert('✅ Ready-to-print design uploaded successfully! You can now proceed to add to cart.');
+            });
+        } else if (file.type === 'application/pdf') {
+          alert('PDF uploaded successfully! This will be processed during order fulfillment.');
+          // Store PDF info for later processing
+          localStorage.setItem('readyPrintFile', JSON.stringify({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: dataUrl
+          }));
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Reset input
+    e.target.value = '';
+    setShowUploadModal(false);
+  };
+
   // Add to cart
   const addToCart = async () => {
     if (!canvas || !product) return;
@@ -256,6 +318,48 @@ const SimpleDesignEditorPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Upload Ready Design Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowUploadModal(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Upload Ready-to-Print Design</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Have a print-ready file? Upload it here to skip the design process and proceed directly to checkout.
+            </p>
+            <div className="bg-blue-50 rounded-lg p-4 mb-4">
+              <p className="text-xs text-blue-800 font-semibold mb-2">Supported Formats:</p>
+              <ul className="text-xs text-blue-700 space-y-1">
+                <li>• PDF (Recommended for print)</li>
+                <li>• PNG (High resolution, 300 DPI)</li>
+                <li>• JPG/JPEG (High resolution, 300 DPI)</li>
+              </ul>
+            </div>
+            <input
+              ref={readyFileInputRef}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg"
+              multiple
+              onChange={handleReadyFileUpload}
+              className="hidden"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => readyFileInputRef.current?.click()}
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold"
+              >
+                Choose Files
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -272,13 +376,12 @@ const SimpleDesignEditorPage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Download button removed - users must purchase to download */}
             <button
-              onClick={() => {/* downloadDesign removed */}}
-              className="hidden flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              onClick={() => setShowUploadModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold"
             >
-              <Download size={18} />
-              Download
+              <Upload size={18} />
+              Upload Ready Design
             </button>
             <button
               onClick={addToCart}
