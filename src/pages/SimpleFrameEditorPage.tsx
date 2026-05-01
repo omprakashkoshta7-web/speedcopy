@@ -52,12 +52,6 @@ interface UserPhoto {
   height: number;
   scale: number;
   rotation: number;
-  cornerRadius?: {
-    topLeft: number;
-    topRight: number;
-    bottomLeft: number;
-    bottomRight: number;
-  };
 }
 
 interface SavedDesign {
@@ -428,19 +422,6 @@ const SimpleFrameEditorPage: React.FC = () => {
     if (selectedPhotoId === id) setSelectedPhotoId(null);
   };
 
-  // ── Corner removal ────────────────────────────────────────────────────────
-  const toggleCorner = (corner: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight') => {
-    if (!selectedPhotoId) return;
-    setUserPhotos(prev => prev.map(p => {
-      if (p.id !== selectedPhotoId) return p;
-      const currentRadius = p.cornerRadius || { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 };
-      const newRadius = { ...currentRadius };
-      // Toggle: if 0, set to 50px, else set to 0
-      newRadius[corner] = currentRadius[corner] === 0 ? 50 : 0;
-      return { ...p, cornerRadius: newRadius };
-    }));
-  };
-
   // ── Add to cart ───────────────────────────────────────────────────────────
   const addToCart = async () => {
     if (!isAuthenticated) {
@@ -807,54 +788,6 @@ const SimpleFrameEditorPage: React.FC = () => {
                   <button onClick={() => scalePhoto(1.1)} className="flex-1 py-2 bg-gray-100 rounded-lg text-xs font-medium hover:bg-gray-200">+ Larger</button>
                 </div>
                 <button onClick={fitPhoto} className="w-full py-2 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium hover:bg-orange-200">⊡ Fit to Center</button>
-                
-                {/* Corner Removal */}
-                <div className="pt-2 border-t border-gray-200">
-                  <p className="text-xs font-semibold text-gray-600 mb-2">Remove Corners</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button 
-                      onClick={() => toggleCorner('topLeft')}
-                      className={`py-2 rounded-lg text-xs font-medium transition ${
-                        (selectedPhoto.cornerRadius?.topLeft || 0) > 0 
-                          ? 'bg-orange-500 text-white' 
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
-                    >
-                      ↖ Top Left
-                    </button>
-                    <button 
-                      onClick={() => toggleCorner('topRight')}
-                      className={`py-2 rounded-lg text-xs font-medium transition ${
-                        (selectedPhoto.cornerRadius?.topRight || 0) > 0 
-                          ? 'bg-orange-500 text-white' 
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
-                    >
-                      ↗ Top Right
-                    </button>
-                    <button 
-                      onClick={() => toggleCorner('bottomLeft')}
-                      className={`py-2 rounded-lg text-xs font-medium transition ${
-                        (selectedPhoto.cornerRadius?.bottomLeft || 0) > 0 
-                          ? 'bg-orange-500 text-white' 
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
-                    >
-                      ↙ Bottom Left
-                    </button>
-                    <button 
-                      onClick={() => toggleCorner('bottomRight')}
-                      className={`py-2 rounded-lg text-xs font-medium transition ${
-                        (selectedPhoto.cornerRadius?.bottomRight || 0) > 0 
-                          ? 'bg-orange-500 text-white' 
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
-                    >
-                      ↘ Bottom Right
-                    </button>
-                  </div>
-                </div>
-
                 <button onClick={() => deletePhoto(selectedPhoto.id)} className="w-full py-2 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 flex items-center justify-center gap-1.5">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -976,8 +909,6 @@ const SimpleFrameEditorPage: React.FC = () => {
               const w = photo.width * photo.scale;
               const h = photo.height * photo.scale;
               const isSelected = selectedPhotoId === photo.id;
-              const cornerRadius = photo.cornerRadius || { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 };
-              const borderRadiusStyle = `${cornerRadius.topLeft}px ${cornerRadius.topRight}px ${cornerRadius.bottomRight}px ${cornerRadius.bottomLeft}px`;
               
               return (
                 <div
@@ -991,11 +922,9 @@ const SimpleFrameEditorPage: React.FC = () => {
                     width: w,
                     height: h,
                     cursor: 'move',
-                    border: isSelected ? '2px solid #ff6a3d' : '2px solid transparent',
-                    borderRadius: borderRadiusStyle,
+                    border: isSelected ? '2px solid #ff6a3d' : 'none',
                     boxSizing: 'border-box',
                     zIndex: isSelected ? 10 : 5,
-                    overflow: 'hidden',
                   }}
                 >
                   <img
@@ -1006,7 +935,7 @@ const SimpleFrameEditorPage: React.FC = () => {
                       height: '100%', 
                       objectFit: 'cover', 
                       display: 'block',
-                      borderRadius: borderRadiusStyle
+                      pointerEvents: 'none'
                     }}
                     draggable={false}
                   />
