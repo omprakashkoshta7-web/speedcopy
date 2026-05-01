@@ -653,6 +653,7 @@ class ProductService {
       const queryParams = cleanStoreQueryParams(params);
       console.log('[Product Service] Vendor store query params:', queryParams);
 
+      // First try with given params
       try {
         const response = await apiClient.get(
           API_CONFIG.ENDPOINTS.VENDORS.NEARBY_STORES,
@@ -666,17 +667,23 @@ class ProductService {
           return response.data;
         }
 
-        console.warn('[Product Service] Gateway returned no vendor stores, trying vendor service fallback');
+        // If 0 stores found with small radius, retry with very large radius to get ALL stores
+        console.warn('[Product Service] No stores in radius, retrying with global radius...');
+        const globalParams = { ...queryParams, radius: 20000, limit: 50 };
+        const globalResponse = await apiClient.get(
+          API_CONFIG.ENDPOINTS.VENDORS.NEARBY_STORES,
+          { params: globalParams }
+        );
+        const globalStores = extractStoresFromResponse(globalResponse.data);
+        console.log('[Product Service] Global vendor stores found:', globalStores.length);
+        if (globalStores.length > 0) {
+          return globalResponse.data;
+        }
       } catch (gatewayError: any) {
-        console.warn('[Product Service] Gateway vendor stores failed, trying vendor service fallback:', gatewayError.response?.data || gatewayError.message);
+        console.warn('[Product Service] Gateway vendor stores failed:', gatewayError.response?.data || gatewayError.message);
       }
 
-      const response = await axios.get(
-        `${VENDOR_SERVICE_URL}/api/vendor/stores/nearby`,
-        { params: queryParams }
-      );
-      console.log('[Product Service] Direct vendor stores response:', response.data);
-      return response.data;
+      return { success: false, data: { stores: [] } };
     } catch (error: any) {
       console.error('[Product Service] Vendor stores failed:', error.response?.data || error.message);
       return { success: false, data: { stores: [] } };
