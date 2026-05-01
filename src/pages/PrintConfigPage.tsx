@@ -506,11 +506,6 @@ const PrintConfigPage: React.FC = () => {
                 backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.12, zIndex: 0,
               }} />
               <div style={{ position: 'relative', zIndex: 1 }}>
-                <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: '#f3f4f6' }}>
-                  <svg className="w-6 h-6" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                </div>
                 <p className="font-bold text-gray-900 mb-1" style={{ fontSize: '15px' }}>Drag & drop more files</p>
                 <p className="text-xs mb-4" style={{ color: '#9ca3af' }}>or click to browse your computer</p>
                 <div className="flex gap-2 justify-center">
