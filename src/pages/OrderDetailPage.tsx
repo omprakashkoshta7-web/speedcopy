@@ -299,20 +299,21 @@ const OrderDetailPage: React.FC = () => {
           <p>Thank you for choosing SpeedCopy! For support, contact support@speedcopy.in</p>
           <p style="margin-top:4px;">This is a computer-generated invoice and does not require a signature.</p>
         </div>
+        <script>window.onload = function(){ window.print(); }</script>
       </body>
       </html>
     `;
 
-    const win = window.open('', '_blank', 'width=800,height=900');
-    if (!win) return;
-    win.document.write(invoiceHtml);
-    win.document.close();
-    win.focus();
-    // Small delay to let styles render before print dialog
-    setTimeout(() => {
-      win.print();
-      win.close();
-    }, 400);
+    // Create a blob and download as HTML file (opens print dialog automatically)
+    const blob = new Blob([invoiceHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Invoice-${order.orderNumber}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
