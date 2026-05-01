@@ -10,25 +10,6 @@ interface SidebarProps {
 }
 
 // Static menu items — wallet & orders badges injected dynamically below
-const MAIN_NAVIGATION = [
-  {
-    icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>),
-    label: 'Printing', key: 'printing', route: '/printing',
-  },
-  {
-    icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" /></svg>),
-    label: 'Gifting', key: 'gifting', route: '/gifting',
-  },
-  {
-    icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>),
-    label: 'Shopping', key: 'shopping', route: '/shopping',
-  },
-  {
-    icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>),
-    label: 'Business Printing', key: 'business', route: '/business-printing',
-  },
-];
-
 const STATIC_MENU = [
   {
     icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>),
@@ -206,29 +187,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             </button>
           </div>
         )}
-
-        {/* Divider */}
-        <div className="mx-6 mb-2" style={{ height: '1px', backgroundColor: '#f3f4f6' }} />
-
-        {/* Main Navigation */}
-        <div className="px-4 py-1 mb-2">
-          <p className="text-xs font-bold tracking-wider mb-2 px-3" style={{ color: '#9ca3af' }}>EXPLORE</p>
-          {MAIN_NAVIGATION.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => handleNav(item.route)}
-              className="w-full flex items-center justify-between px-3 py-3 rounded-xl hover:bg-gray-50 transition group"
-            >
-              <div className="flex items-center gap-3">
-                <span style={{ color: '#6b7280' }}>{item.icon}</span>
-                <span className="text-base font-medium text-gray-800">{item.label}</span>
-              </div>
-              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          ))}
-        </div>
 
         {/* Divider */}
         <div className="mx-6 mb-2" style={{ height: '1px', backgroundColor: '#f3f4f6' }} />
