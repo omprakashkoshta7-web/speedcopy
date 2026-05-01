@@ -341,13 +341,25 @@ const PickupLocationPage: React.FC = () => {
       setZipSearching(true);
       setZipError('');
 
-      const mappedStores = await loadStores({
-        pincode: zip,
-        limit: 50,
+      // Vendor API doesn't support pincode - use global radius and filter locally by pincode
+      // Use a central India lat/lng with huge radius to get all stores, then filter by pincode
+      let mappedStores = await loadStores({
+        lat: 22.9734,
+        lng: 78.6569,
+        radius: 20000,
+        limit: 100,
       });
 
-      if (mappedStores.length > 0) {
-        setLocations(mappedStores);
+      // Filter stores by pincode locally - check address string which contains pincode
+      const pincodeFiltered = mappedStores.filter(store => {
+        const storeAddress = store.address || '';
+        return String(storeAddress).includes(zip);
+      });
+
+      const finalStores = pincodeFiltered.length > 0 ? pincodeFiltered : mappedStores;
+
+      if (finalStores.length > 0) {
+        setLocations(finalStores);
         setShowNearMePopup(false);
         setZipInput('');
       } else {
