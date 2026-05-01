@@ -47,6 +47,8 @@ export const getStoreIdentifier = (store: any): string => {
 };
 
 export const extractStoresFromResponse = (response: any): any[] => {
+  // Vendor API: { success, data: { stores: [...], totalFound, ... } }
+  // Printing API: { success, data: [...] }
   const candidates = [
     response?.data?.stores,
     response?.data?.data?.stores,
@@ -61,6 +63,11 @@ export const extractStoresFromResponse = (response: any): any[] => {
     response,
   ];
 
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length > 0) return candidate;
+  }
+
+  // Last resort: if data is array (even empty)
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) return candidate;
   }

@@ -31,13 +31,19 @@ const statusColor: Record<string, string> = {
 const isFalseLike = (value: any) =>
   value === false || value === 0 || String(value).toLowerCase() === 'false';
 
+// Only filter out stores that are EXPLICITLY inactive/disabled
+// If field is undefined/null, assume store is active (permissive)
 const isStoreVisible = (store: any) => {
-  if (isFalseLike(store?.is_active) || isFalseLike(store?.isActive) || isFalseLike(store?.active)) {
-    return false;
-  }
+  // Explicitly false → hide
+  if (isFalseLike(store?.is_active)) return false;
+  if (isFalseLike(store?.isActive)) return false;
 
+  // Explicitly inactive/disabled/deleted status → hide
   const status = String(store?.status || store?.storeStatus || '').toLowerCase();
-  return !['inactive', 'disabled', 'deleted'].includes(status);
+  if (['inactive', 'disabled', 'deleted'].includes(status)) return false;
+
+  // Everything else → show (including undefined/null fields)
+  return true;
 };
 
 const formatVendorAddress = (store: any) => {
@@ -246,9 +252,12 @@ const PickupLocationPage: React.FC = () => {
 
     results.forEach((res, i) => {
       if (res.status === 'fulfilled') {
-        const stores = extractStoresFromResponse(res.value).filter(isStoreVisible);
-        console.log(`[PickupLocation] ${sources[i]} stores found:`, stores.length);
-        allStores.push(...stores);
+        console.log(`[PickupLocation] Raw ${sources[i]} response:`, JSON.stringify(res.value)?.slice(0, 500));
+        const stores = extractStoresFromResponse(res.value);
+        console.log(`[PickupLocation] ${sources[i]} extracted stores:`, stores.length, stores);
+        const visible = stores.filter(isStoreVisible);
+        console.log(`[PickupLocation] ${sources[i]} visible stores after filter:`, visible.length);
+        allStores.push(...visible);
       } else {
         console.error(`[PickupLocation] ${sources[i]} API failed:`, res.reason);
       }
