@@ -41,45 +41,69 @@ const PrintCheckoutPage: React.FC = () => {
         
         // Fetch location details if locationId exists
         if (locationId) {
+          // 1. First try sessionStorage cache (fastest)
           const cachedLocation = sessionStorage.getItem(`pickup_location_${locationId}`);
           if (cachedLocation) {
             try {
               const parsedLocation = JSON.parse(cachedLocation);
-              if (String(parsedLocation?.id || parsedLocation?._id) === locationId) {
-                setPickupLocation(parsedLocation);
-              }
+              setPickupLocation(parsedLocation);
+              console.log('[PrintCheckout] Store loaded from sessionStorage cache');
             } catch (error) {
               console.warn('[PrintCheckout] Failed to parse cached pickup location:', error);
             }
           }
 
-          try {
-            const [vendorRes, printingRes] = await Promise.allSettled([
-              productService.getNearbyVendorStores({ limit: 100 }),
-              productService.getPrintingPickupLocations({ limit: 100 }),
-            ]);
+          // 2. If it's the default SpeedCopyHub, set it directly without API call
+          if (locationId === 'speedcopyhub-main') {
+            setPickupLocation({
+              id: 'speedcopyhub-main',
+              name: 'SpeedCopyHub',
+              address: 'Mumbai, Maharashtra - 400001',
+              distance: 'Nearby',
+              rating: 4.8,
+              reviews: 245,
+              status: 'open247',
+              statusLabel: '24/7 OPEN',
+              amenities: ['print', 'wifi', 'parking'],
+              icon: 'store',
+              estimatedDeliveryTime: 'Ready in 2-4 hrs',
+              readyTime: 'Ready in 2-4 hrs',
+            });
+          }
+          // 3. Only call API if we have a real MongoDB ObjectId (not a default store)
+          else if (/^[0-9a-fA-F]{24}$/.test(locationId)) {
+            try {
+              // Try to get user location for nearby search
+              let storeParams: any = { limit: 100 };
+              try {
+                const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+                  navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
+                );
+                storeParams = { lat: pos.coords.latitude, lng: pos.coords.longitude, radius: 50, limit: 100 };
+              } catch {
+                // No location available - skip API call, rely on sessionStorage
+                console.log('[PrintCheckout] No location available, skipping store API call');
+              }
 
-            const allStores: any[] = [];
+              if (storeParams.lat) {
+                const [vendorRes, printingRes] = await Promise.allSettled([
+                  productService.getNearbyVendorStores(storeParams),
+                  productService.getPrintingPickupLocations(storeParams),
+                ]);
 
-            if (vendorRes.status === 'fulfilled') {
-              allStores.push(...extractStoresFromResponse(vendorRes.value));
+                const allStores: any[] = [];
+                if (vendorRes.status === 'fulfilled') allStores.push(...extractStoresFromResponse(vendorRes.value));
+                if (printingRes.status === 'fulfilled') allStores.push(...extractStoresFromResponse(printingRes.value));
+
+                const foundStore = allStores.find((store: any) => getStoreIdentifier(store) === locationId);
+                if (foundStore) {
+                  setPickupLocation(foundStore);
+                  console.log('[PrintCheckout] Store loaded from API:', foundStore);
+                }
+              }
+            } catch (error) {
+              console.error('[PrintCheckout] Failed to fetch store from API:', error);
             }
-            if (printingRes.status === 'fulfilled') {
-              allStores.push(...extractStoresFromResponse(printingRes.value));
-            }
-
-            const foundStore = allStores.find(
-              (store: any) => getStoreIdentifier(store) === locationId
-            );
-
-            if (foundStore) {
-              setPickupLocation(foundStore);
-              console.log('[PrintCheckout] Store loaded from API:', foundStore);
-            } else {
-              console.warn('[PrintCheckout] Store not found for locationId:', locationId);
-            }
-          } catch (error) {
-            console.error('[PrintCheckout] Failed to fetch store from API:', error);
           }
         }
         // Get print config from localStorage
