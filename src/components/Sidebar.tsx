@@ -243,7 +243,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
               </div>
               <div className="text-left">
                 <p className="text-base font-bold" style={{ color: '#e11d48' }}>Refer &amp; Earn</p>
-                <p className="text-xs" style={{ color: '#f43f5e' }}>Get $10 for every friend</p>
+                <p className="text-xs" style={{ color: '#f43f5e' }}>Get ₹50 for every friend</p>
               </div>
             </div>
             <svg className="w-5 h-5" style={{ color: '#e11d48' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -30,8 +30,11 @@ const ReferPage: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [summary, setSummary] = useState<any>(null);
   const [referralHistory, setReferralHistory] = useState<any[]>([]);
+  const [filteredHistory, setFilteredHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -51,11 +54,13 @@ const ReferPage: React.FC = () => {
       const data = summaryRes.data?.data || summaryRes.data || summaryRes;
       setSummary(data);
       setReferralHistory(data?.recent_referrals || []);
+      setFilteredHistory(data?.recent_referrals || []);
     } catch (err: any) {
       console.error('Failed to fetch referral data:', err);
       // Show page with defaults instead of error screen
       setSummary({ my_code: 'SPEEDCOPY', reward_per_friend: 50, totals: { total_earned: 0, pending_rewards: 0, friends_joined: 0, total_referrals: 0 }, recent_referrals: [] });
       setReferralHistory([]);
+      setFilteredHistory([]);
     } finally {
       setLoading(false);
     }
@@ -75,6 +80,36 @@ const ReferPage: React.FC = () => {
   const handleWhatsAppShare = () => {
     const message = `Use my referral code ${referralCode} on SpeedCopy and get 20% off your first order: ${shareUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleFilter = (status: string) => {
+    setActiveFilter(status);
+    setShowFilterMenu(false);
+    if (status === 'all') {
+      setFilteredHistory(referralHistory);
+    } else {
+      setFilteredHistory(referralHistory.filter(r => r.status === status));
+    }
+  };
+
+  const handleExport = () => {
+    const rows = [
+      ['Friend', 'Date Invited', 'Status', 'Reward Earned'],
+      ...filteredHistory.map(row => [
+        row.referredId ? `Friend ${row.referredId.slice(-4).toUpperCase()}` : 'Invited',
+        formatDate(row.createdAt),
+        STATUS_MAP[row.status]?.label || row.status,
+        formatReward(row),
+      ]),
+    ];
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `referrals-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (!isAuthenticated) {
@@ -258,17 +293,39 @@ const ReferPage: React.FC = () => {
               <p className="text-xs sm:text-sm mt-0.5" style={{ color: '#9ca3af' }}>Track the status of your invites and earnings.</p>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-gray-600 hover:bg-gray-50 transition flex-1 sm:flex-initial" style={{ border: '1px solid #e5e7eb' }}>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                <span className="hidden sm:inline">Filter</span>
-              </button>
-              <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-white text-xs sm:text-sm font-bold hover:opacity-90 transition flex-1 sm:flex-initial" style={{ backgroundColor: '#111111' }}>
+              <div className="relative flex-1 sm:flex-initial">
+                <button
+                  onClick={() => setShowFilterMenu(!showFilterMenu)}
+                  className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-gray-600 hover:bg-gray-50 transition w-full"
+                  style={{ border: `1px solid ${activeFilter !== 'all' ? '#111' : '#e5e7eb'}`, backgroundColor: activeFilter !== 'all' ? '#f3f4f6' : '#fff' }}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  <span>{activeFilter === 'all' ? 'Filter' : STATUS_MAP[activeFilter]?.label || activeFilter}</span>
+                </button>
+                {showFilterMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg z-10 py-1 min-w-[140px]" style={{ border: '1px solid #e5e7eb' }}>
+                    {['all', 'pending', 'completed', 'rewarded', 'expired'].map(s => (
+                      <button key={s} onClick={() => handleFilter(s)}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition capitalize"
+                        style={{ color: activeFilter === s ? '#111' : '#6b7280', fontWeight: activeFilter === s ? 700 : 400 }}>
+                        {s === 'all' ? 'All' : STATUS_MAP[s]?.label || s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleExport}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-white text-xs sm:text-sm font-bold hover:opacity-90 transition flex-1 sm:flex-initial"
+                style={{ backgroundColor: '#111111' }}
+              >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span className="hidden sm:inline">Export</span>
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
               </button>
             </div>
           </div>
@@ -286,7 +343,7 @@ const ReferPage: React.FC = () => {
                 <p className="text-sm font-medium" style={{ color: '#9ca3af' }}>No referrals yet. Share your code to get started!</p>
               </div>
             ) : (
-              referralHistory.map((row, idx) => {
+              filteredHistory.map((row, idx) => {
                 const statusInfo = STATUS_MAP[row.status] || STATUS_MAP.pending;
                 const avatarColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
                 const initials = row.referredId ? getInitials(row.referredId) : '??';
@@ -294,7 +351,7 @@ const ReferPage: React.FC = () => {
                 const reward = formatReward(row);
                 return (
                   <div key={row._id} className="grid items-center px-3 py-4 rounded-xl hover:bg-gray-50 transition"
-                    style={{ gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr', borderBottom: idx < referralHistory.length - 1 ? '1px solid #f9fafb' : 'none' }}>
+                    style={{ gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr', borderBottom: idx < filteredHistory.length - 1 ? '1px solid #f9fafb' : 'none' }}>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ backgroundColor: avatarColor }}>{initials}</div>
                       <span className="font-medium text-gray-800 text-sm">{friendLabel}</span>
@@ -315,12 +372,12 @@ const ReferPage: React.FC = () => {
 
           {/* Mobile Cards */}
           <div className="xl:hidden space-y-3">
-            {referralHistory.length === 0 ? (
+            {filteredHistory.length === 0 ? (
               <div className="py-10 text-center">
                 <p className="text-sm font-medium" style={{ color: '#9ca3af' }}>No referrals yet. Share your code to get started!</p>
               </div>
             ) : (
-              referralHistory.map((row, idx) => {
+              filteredHistory.map((row, idx) => {
                 const statusInfo = STATUS_MAP[row.status] || STATUS_MAP.pending;
                 const avatarColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
                 const initials = row.referredId ? getInitials(row.referredId) : '??';

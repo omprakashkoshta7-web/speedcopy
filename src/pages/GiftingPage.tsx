@@ -430,7 +430,7 @@ const GiftingPage: React.FC = () => {
               <span className="text-white/70 text-xs font-bold tracking-widest uppercase">Rewards Program</span>
             </div>
             <h2 className="font-bold text-white mb-3" style={{ fontSize: '24px' }}>Share the Love, Earn Rewards</h2>
-            <p className="text-white/70 text-sm mb-6 leading-relaxed">Invite your friends to SpeedCopy. They get ₹10 off their first order, and you get $10 credit for each successful referral.</p>
+            <p className="text-white/70 text-sm mb-6 leading-relaxed">Invite your friends to SpeedCopy. They get 20% off their first order, and you get ₹50 credit for each successful referral.</p>
             <button onClick={() => navigate('/refer')} className="px-6 py-3 bg-white font-bold rounded-full text-sm hover:bg-gray-100 transition" style={{ color: '#111' }}>Start Referring</button>
           </div>
           <div className="flex-shrink-0 w-full md:w-64">
