@@ -53,22 +53,9 @@ const PrintCheckoutPage: React.FC = () => {
             }
           }
 
-          // 2. If it's the default SpeedCopyHub, set it directly without API call
+          // 2. If it's the default SpeedCopyHub, skip - no mock data
           if (locationId === 'speedcopyhub-main') {
-            setPickupLocation({
-              id: 'speedcopyhub-main',
-              name: 'SpeedCopyHub',
-              address: 'Mumbai, Maharashtra - 400001',
-              distance: 'Nearby',
-              rating: 4.8,
-              reviews: 245,
-              status: 'open247',
-              statusLabel: '24/7 OPEN',
-              amenities: ['print', 'wifi', 'parking'],
-              icon: 'store',
-              estimatedDeliveryTime: 'Ready in 2-4 hrs',
-              readyTime: 'Ready in 2-4 hrs',
-            });
+            // legacy locationId - ignore mock store
           }
           // 3. Only call API if we have a real MongoDB ObjectId (not a default store)
           else if (/^[0-9a-fA-F]{24}$/.test(locationId)) {

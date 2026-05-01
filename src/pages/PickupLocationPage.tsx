@@ -310,45 +310,10 @@ const PickupLocationPage: React.FC = () => {
         apiStores = await loadStores({ lat: userLat, lng: userLng, radius: 20000, limit: 50 });
       }
 
-      // Always show SpeedCopyHub as default
-      const speedCopyHub: PickupLocation = {
-        id: 'speedcopyhub-main',
-        name: 'SpeedCopyHub',
-        address: 'Mumbai, Maharashtra - 400001',
-        distance: 'Nearby',
-        rating: 4.8,
-        reviews: 245,
-        status: 'open247',
-        statusLabel: '24/7 OPEN',
-        amenities: ['print', 'wifi', 'parking'],
-        icon: 'store',
-        estimatedDeliveryTime: 'Ready in 2-4 hrs',
-        readyTime: 'Ready in 2-4 hrs',
-      };
-
-      // Merge: SpeedCopyHub first, then API stores (deduplicated)
-      const apiIds = new Set(apiStores.map(s => s.id));
-      const merged = apiIds.has('speedcopyhub-main')
-        ? apiStores
-        : [speedCopyHub, ...apiStores];
-
-      setLocations(merged);
+      setLocations(apiStores);
     } catch (error) {
       console.error('[PickupLocation] Failed to fetch pickup locations:', error);
-      setLocations([{
-        id: 'speedcopyhub-main',
-        name: 'SpeedCopyHub',
-        address: 'Mumbai, Maharashtra - 400001',
-        distance: 'Nearby',
-        rating: 4.8,
-        reviews: 245,
-        status: 'open247',
-        statusLabel: '24/7 OPEN',
-        amenities: ['print', 'wifi', 'parking'],
-        icon: 'store',
-        estimatedDeliveryTime: 'Ready in 2-4 hrs',
-        readyTime: 'Ready in 2-4 hrs',
-      }]);
+      setLocations([]);
     } finally {
       setLoading(false);
     }
