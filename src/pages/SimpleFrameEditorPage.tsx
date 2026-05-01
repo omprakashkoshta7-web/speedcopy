@@ -88,6 +88,7 @@ const SimpleFrameEditorPage: React.FC = () => {
   const [reviewNote, setReviewNote] = useState('');
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewPreviewImage, setReviewPreviewImage] = useState('');
 
   // Text layer state
   const [userTexts, setUserTexts] = useState<UserText[]>([]);
@@ -248,6 +249,28 @@ const SimpleFrameEditorPage: React.FC = () => {
 
   const selectedText = userTexts.find(t => t.id === selectedTextId) || null;
 
+  // ── Generate Review Preview ──────────────────────────────────────────────
+  const generateReviewPreview = async () => {
+    let previewImage = productImages[activeImageIndex] || '';
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      if (editorRef.current) {
+        const canvas = await html2canvas(editorRef.current, { useCORS: true, allowTaint: true, scale: 0.4 });
+        const maxW = 400;
+        const ratio = Math.min(maxW / canvas.width, 1);
+        const resized = document.createElement('canvas');
+        resized.width = Math.round(canvas.width * ratio);
+        resized.height = Math.round(canvas.height * ratio);
+        const ctx = resized.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(canvas, 0, 0, resized.width, resized.height);
+          previewImage = resized.toDataURL('image/jpeg', 0.5);
+        }
+      }
+    } catch { /* use product image */ }
+    setReviewPreviewImage(previewImage);
+  };
+
   // ── Submit for Review ─────────────────────────────────────────────────────
   const submitForReview = async () => {
     if (userPhotos.length === 0) {
@@ -256,24 +279,8 @@ const SimpleFrameEditorPage: React.FC = () => {
     }
     setReviewSubmitting(true);
     try {
-      // Generate composite thumbnail
-      let previewImage = productImages[activeImageIndex] || '';
-      try {
-        const { default: html2canvas } = await import('html2canvas');
-        if (editorRef.current) {
-          const canvas = await html2canvas(editorRef.current, { useCORS: true, allowTaint: true, scale: 0.4 });
-          const maxW = 400;
-          const ratio = Math.min(maxW / canvas.width, 1);
-          const resized = document.createElement('canvas');
-          resized.width = Math.round(canvas.width * ratio);
-          resized.height = Math.round(canvas.height * ratio);
-          const ctx = resized.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(canvas, 0, 0, resized.width, resized.height);
-            previewImage = resized.toDataURL('image/jpeg', 0.5);
-          }
-        }
-      } catch { /* use product image */ }
+      // Use the already generated preview image
+      const previewImage = reviewPreviewImage || productImages[activeImageIndex] || '';
 
       // Save review submission to localStorage
       const reviewKey = 'speedcopy_review_submissions';
@@ -708,7 +715,11 @@ const SimpleFrameEditorPage: React.FC = () => {
               Upload Ready Design
             </button>
             <button
-              onClick={() => { setShowReviewModal(true); setReviewSubmitted(false); }}
+              onClick={() => { 
+                setShowReviewModal(true); 
+                setReviewSubmitted(false);
+                generateReviewPreview();
+              }}
               className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition"
               style={{ backgroundColor: '#111111', color: '#ffffff' }}
             >
@@ -1321,10 +1332,12 @@ const SimpleFrameEditorPage: React.FC = () => {
                 <div className="p-6">
                   {/* Design preview */}
                   <div className="rounded-xl overflow-hidden border border-gray-200 mb-5" style={{ height: '180px', backgroundColor: '#f9fafb' }}>
-                    {productImages[activeImageIndex] ? (
-                      <img src={productImages[activeImageIndex]} alt="Design preview" className="w-full h-full object-contain" />
+                    {reviewPreviewImage ? (
+                      <img src={reviewPreviewImage} alt="Design preview" className="w-full h-full object-contain" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl">🖼</div>
+                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
+                        Generating preview...
+                      </div>
                     )}
                   </div>
 
