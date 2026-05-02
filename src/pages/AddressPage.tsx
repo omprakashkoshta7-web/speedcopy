@@ -197,6 +197,16 @@ const AddressPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-col sm:flex-row items-start justify-between mb-8 px-1 gap-4">
           <div>
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1.5 text-sm font-semibold mb-3 hover:opacity-70 transition"
+              style={{ color: '#6b7280' }}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
+            </button>
             <h1 className="font-bold text-gray-900 mb-1" style={{ fontSize: '28px' }}>
               {fromPrintFlow ? 'Select Delivery Address' : 'Saved Addresses'}
             </h1>
