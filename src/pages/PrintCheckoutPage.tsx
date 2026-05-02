@@ -475,7 +475,9 @@ const PrintCheckoutPage: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span className="text-sm font-semibold" style={{ color: '#16a34a' }}>
-                          {pickupLocation.estimatedDeliveryTime || sessionStorage.getItem(`pickup_delivery_time_${locationId}`) || 'Ready in 2-4 hrs'}
+                          {pickupLocation.estimatedDeliveryTime ||
+                           sessionStorage.getItem(`pickup_delivery_time_${locationId}`) ||
+                           (pickupLocation.workingHours ? `Ready during ${pickupLocation.workingHours}` : 'Ready during store hours')}
                         </span>
                       </div>
                     </div>
@@ -576,7 +578,9 @@ const PrintCheckoutPage: React.FC = () => {
                     <div>
                       <p className="text-xs font-semibold" style={{ color: '#16a34a' }}>Delivery Time</p>
                       <p className="text-sm font-bold text-gray-900">
-                        {pickupLocation.estimatedDeliveryTime || sessionStorage.getItem(`pickup_delivery_time_${locationId}`) || 'Ready in 2-4 hrs'}
+                        {pickupLocation.estimatedDeliveryTime ||
+                         sessionStorage.getItem(`pickup_delivery_time_${locationId}`) ||
+                         (pickupLocation.workingHours ? `Ready during ${pickupLocation.workingHours}` : 'Ready during store hours')}
                       </p>
                     </div>
                   </div>

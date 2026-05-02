@@ -323,7 +323,7 @@ const PickupLocationPage: React.FC = () => {
     if (selectedLocation) {
       sessionStorage.setItem(`pickup_location_${locationId}`, JSON.stringify(selectedLocation));
       // Also store the delivery time separately for easy access
-      sessionStorage.setItem(`pickup_delivery_time_${locationId}`, selectedLocation.estimatedDeliveryTime || 'Ready in 2-4 hrs');
+      sessionStorage.setItem(`pickup_delivery_time_${locationId}`, selectedLocation.estimatedDeliveryTime || (selectedLocation.statusLabel && selectedLocation.statusLabel !== 'CLOSED' ? `Ready during ${selectedLocation.statusLabel}` : 'Ready during store hours'));
     }
 
     // Navigate directly to print checkout page with Razorpay payment
