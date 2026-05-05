@@ -8,7 +8,6 @@ import { useAuth } from '../context/AuthContext';
 import fileStorageService from '../services/fileStorage.service';
 
 type CounterProps = { value: number; onChange: (v: number) => void };
-type DropdownProps = { label: string; options: string[]; value: string; onChange: (v: string) => void };
 
 const Counter: React.FC<CounterProps> = ({ value, onChange }) => (
   <div className="flex items-center gap-3">
@@ -32,36 +31,6 @@ const Counter: React.FC<CounterProps> = ({ value, onChange }) => (
   </div>
 );
 
-const Dropdown: React.FC<DropdownProps> = ({ label, options, value, onChange }) => {
-  const [open, setOpen] = React.useState(false);
-  return (
-    <div className="mb-4">
-      <p className="font-semibold text-gray-700 mb-1.5 px-1" style={{ fontSize: '13px' }}>{label}</p>
-      <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-        <button onClick={() => setOpen(o => !o)}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
-          style={{ borderBottom: open ? '1px solid #f3f4f6' : 'none' }}>
-          <span className="text-sm" style={{ color: value ? '#111111' : '#9ca3af', fontWeight: value ? 600 : 400 }}>
-            {value || 'Select Input'}
-          </span>
-        </button>
-        {open && options.map(opt => (
-          <button key={opt} onClick={() => { onChange(opt); setOpen(false); }}
-            className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center justify-between"
-            style={{ color: value === opt ? '#111111' : '#374151', fontWeight: value === opt ? 700 : 400, borderBottom: '1px solid #f9fafb' }}>
-            {opt}
-            {value === opt && (
-              <svg className="w-4 h-4" style={{ color: '#111111' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 const PrintConfigPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -76,12 +45,11 @@ const PrintConfigPage: React.FC = () => {
   const [pageSize, setPageSize] = useState('');
   const [printSide, setPrintSide] = useState('');
   const [selectedPrintType] = useState('');
-  const [instructions, setInstructions] = useState('');
+  const [instructions] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
-  const [filesLoading, setFilesLoading] = useState(true);
-  const [bindingType, setBindingType] = useState('');
+  const [bindingType] = useState('');
   const [coverPage, setCoverPage] = useState('');
 
   // Pricing configuration
@@ -172,8 +140,6 @@ const PrintConfigPage: React.FC = () => {
 
   const fetchUploadedFiles = async () => {
     try {
-      setFilesLoading(true);
-      
       // Initialize IndexedDB
       await fileStorageService.init();
       
@@ -209,8 +175,6 @@ const PrintConfigPage: React.FC = () => {
     } catch (error) {
       console.error('Error fetching files:', error);
       setUploadedFiles([]);
-    } finally {
-      setFilesLoading(false);
     }
   };
 
