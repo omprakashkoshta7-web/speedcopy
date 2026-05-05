@@ -106,16 +106,16 @@ export const API_CONFIG = {
     },
     // Tickets — Internal service path via gateway
     TICKETS: {
-      CREATE: '/api/notifications/tickets',
-      GET_ALL: '/api/notifications/tickets',
-      GET_SUMMARY: '/api/notifications/tickets/summary',
-      GET_HELP_CENTER: '/api/notifications/help-center',
-      GET_BY_ID: (id: string) => `/api/notifications/tickets/${id}`,
-      REPLY: (id: string) => `/api/notifications/tickets/${id}/reply`,
-      ASSIGN: (id: string) => `/api/notifications/tickets/${id}/assign`,
-      UPDATE_STATUS: (id: string) => `/api/notifications/tickets/${id}/status`,
-      ESCALATE: (id: string) => `/api/notifications/tickets/${id}/escalate`,
-      UPLOADS: '/api/notifications/tickets/uploads',
+      CREATE: '/api/tickets',
+      GET_ALL: '/api/tickets',
+      GET_SUMMARY: '/api/tickets/summary',
+      GET_HELP_CENTER: '/api/help-center',
+      GET_BY_ID: (id: string) => `/api/tickets/${id}`,
+      REPLY: (id: string) => `/api/tickets/${id}/reply`,
+      ASSIGN: (id: string) => `/api/tickets/${id}/assign`,
+      UPDATE_STATUS: (id: string) => `/api/tickets/${id}/status`,
+      ESCALATE: (id: string) => `/api/tickets/${id}/escalate`,
+      UPLOADS: '/api/tickets/uploads',
     },
     // Vendors
     VENDORS: {
