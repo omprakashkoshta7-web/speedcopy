@@ -176,10 +176,12 @@ class TicketService {
     message: string,
     attachments?: string[]
   ): Promise<{ success: boolean; message: string; data: Ticket }> {
+    console.log('💬 [TicketService] Replying to ticket:', { id, messageLength: message.length, attachmentCount: attachments?.length || 0, attachments });
     const response = await apiClient.post(API_CONFIG.ENDPOINTS.TICKETS.REPLY(id), {
       message,
       attachments: attachments || [],
     });
+    console.log('✅ [TicketService] Reply response:', response.data);
     return response.data;
   }
 
@@ -187,9 +189,11 @@ class TicketService {
   async uploadAttachments(files: File[]): Promise<{ success: boolean; data: { attachments: string[] } }> {
     const formData = new FormData();
     files.forEach(file => formData.append('attachments', file));
+    console.log('📤 [TicketService] Uploading files:', files.map(f => ({ name: f.name, size: f.size, type: f.type })));
     const response = await apiClient.post(API_CONFIG.ENDPOINTS.TICKETS.UPLOADS, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    console.log('✅ [TicketService] Upload response:', response.data);
     return response.data;
   }
 

@@ -81,20 +81,27 @@ const TicketDetailPage: React.FC = () => {
       if (attachments.length > 0) {
         setUploadingAttachments(true);
         try {
+          console.log('📤 Uploading attachments:', attachments.map(f => f.name));
           const uploadRes = await ticketService.uploadAttachments(attachments);
+          console.log('✅ Upload response:', uploadRes);
           attachmentUrls = uploadRes?.data?.attachments || [];
+          console.log('📎 Attachment URLs received:', attachmentUrls);
         } catch (uploadErr) {
-          console.warn('Attachment upload failed, proceeding without attachments:', uploadErr);
+          console.error('❌ Attachment upload failed:', uploadErr);
+          setReplyError('Failed to upload attachments. Proceeding without them.');
         } finally {
           setUploadingAttachments(false);
         }
       }
 
+      console.log('💬 Sending reply with attachments:', { message: replyText.trim(), attachmentUrls });
       const res = await ticketService.replyToTicket(id!, replyText.trim(), attachmentUrls);
+      console.log('✅ Reply response:', res);
       setTicket(res.data);
       setReplyText('');
       setAttachments([]);
     } catch (err: any) {
+      console.error('❌ Reply error:', err);
       setReplyError(err?.response?.data?.message || 'Failed to send reply. Try again.');
     } finally {
       setReplying(false);
