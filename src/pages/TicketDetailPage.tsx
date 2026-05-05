@@ -44,7 +44,11 @@ const TicketDetailPage: React.FC = () => {
   const [replyText, setReplyText] = useState('');
   const [replying, setReplying] = useState(false);
   const [replyError, setReplyError] = useState('');
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (id) fetchTicket();
@@ -68,18 +72,67 @@ const TicketDetailPage: React.FC = () => {
   };
 
   const handleReply = async () => {
-    if (!replyText.trim()) return;
+    if (!replyText.trim() && attachments.length === 0) return;
     setReplying(true);
     setReplyError('');
     try {
-      const res = await ticketService.replyToTicket(id!, replyText.trim());
+      // Upload attachments first if any
+      let attachmentUrls: string[] = [];
+      if (attachments.length > 0) {
+        setUploadingAttachments(true);
+        try {
+          const uploadRes = await ticketService.uploadAttachments(attachments);
+          attachmentUrls = uploadRes?.data?.attachments || [];
+        } catch (uploadErr) {
+          console.warn('Attachment upload failed, proceeding without attachments:', uploadErr);
+        } finally {
+          setUploadingAttachments(false);
+        }
+      }
+
+      const res = await ticketService.replyToTicket(id!, replyText.trim(), attachmentUrls);
       setTicket(res.data);
       setReplyText('');
+      setAttachments([]);
     } catch (err: any) {
       setReplyError(err?.response?.data?.message || 'Failed to send reply. Try again.');
     } finally {
       setReplying(false);
     }
+  };
+
+  const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files).filter(file => file.size <= 10 * 1024 * 1024);
+      setAttachments(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.currentTarget.files;
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files).filter(file => file.size <= 10 * 1024 * 1024);
+      setAttachments(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   if (loading) {
@@ -257,23 +310,81 @@ const TicketDetailPage: React.FC = () => {
               className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none resize-none mb-3"
               style={{ border: '1.5px solid #e5e7eb', backgroundColor: '#f9fafb', color: '#374151' }}
             />
+
+            {/* Attachment Upload Area */}
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-xl p-4 mb-3 cursor-pointer transition"
+              style={{
+                border: dragActive ? '2px solid #111111' : '1.5px dashed #e5e7eb',
+                backgroundColor: dragActive ? '#f9fafb' : '#fafafa',
+              }}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileInput}
+                accept="image/*,.pdf,.doc,.docx"
+                style={{ display: 'none' }}
+              />
+              <div className="flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" style={{ color: '#9ca3af' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="text-xs font-medium" style={{ color: '#9ca3af' }}>
+                  Click or drag files here (max 10MB each)
+                </span>
+              </div>
+            </div>
+
+            {/* Attachments List */}
+            {attachments.length > 0 && (
+              <div className="mb-3 space-y-1.5">
+                {attachments.map((file, idx) => (
+                  <div key={idx} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                    <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-gray-700 truncate">{file.name}</p>
+                      <p className="text-xs" style={{ color: '#9ca3af' }}>{(file.size / 1024 / 1024).toFixed(1)} MB</p>
+                    </div>
+                    <button
+                      onClick={() => removeAttachment(idx)}
+                      className="flex-shrink-0 p-1 hover:bg-red-50 rounded transition"
+                      style={{ color: '#ef4444' }}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {replyError && (
               <p className="text-xs font-medium mb-2" style={{ color: '#ef4444' }}>{replyError}</p>
             )}
             <div className="flex justify-end">
               <button
                 onClick={handleReply}
-                disabled={replying || !replyText.trim()}
+                disabled={replying || uploadingAttachments || (!replyText.trim() && attachments.length === 0)}
                 className="flex items-center gap-2 px-6 py-2.5 text-white font-bold rounded-full text-sm transition disabled:opacity-50"
                 style={{ backgroundColor: '#111111' }}
               >
-                {replying ? (
+                {replying || uploadingAttachments ? (
                   <>
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    Sending...
+                    {uploadingAttachments ? 'Uploading...' : 'Sending...'}
                   </>
                 ) : (
                   <>
