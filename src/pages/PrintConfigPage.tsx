@@ -443,19 +443,19 @@ const PrintConfigPage: React.FC = () => {
         // Save config to localStorage for checkout page
         localStorage.setItem(`printConfig_${configId}`, JSON.stringify(configData));
         
-        // Skip service package page and go directly to pickup location
+        // Go to pickup location first, then checkout
         navigate(`/pickup-location?configId=${configId}&type=${printType}`);
       } else {
         // Not logged in — save config with temporary ID
         const tempConfigId = `temp_${Date.now()}`;
         localStorage.setItem(`printConfig_${tempConfigId}`, JSON.stringify(configData));
-        // Skip service package page and go directly to pickup location
+        // Go to pickup location first, then checkout
         navigate(`/pickup-location?configId=${tempConfigId}&type=${printType}`);
       }
     } catch {
-      // Even if save fails, proceed to pickup location with temp config
+      // Even if save fails, proceed to checkout with temp config
       const tempConfigId = `temp_${Date.now()}`;
-      const configData = {
+      const configData2 = {
         copies,
         colorMode,
         pageSize,
@@ -469,288 +469,352 @@ const PrintConfigPage: React.FC = () => {
         instructions,
         printType
       };
-      localStorage.setItem(`printConfig_${tempConfigId}`, JSON.stringify(configData));
-      // Skip service package page and go directly to pickup location
+      localStorage.setItem(`printConfig_${tempConfigId}`, JSON.stringify(configData2));
+      // Go to pickup location first, then checkout
       navigate(`/pickup-location?configId=${tempConfigId}&type=${printType}`);
     } finally {
       setLoading(false);
     }
   };
 
+  // Get print type label for display
+  const getPrintTypeLabel = () => {
+    const labels: Record<string, string> = {
+      'standard': 'Standard Printing',
+      'soft-binding': 'Soft Binding',
+      'spiral-binding': 'Spiral Binding',
+      'thesis-binding': 'Thesis Binding',
+    };
+    return labels[printType] || 'Document Printing';
+  };
+
   return (
     <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         {/* Back Button */}
-        <button 
-          onClick={() => navigate(-1)} 
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition mb-4 font-semibold"
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition mb-5 font-semibold"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Back
         </button>
-        <div className="flex flex-col lg:flex-row gap-6">
 
-          {/* Left */}
-          <div className="w-full lg:w-1/2">
-            {/* Upload zone */}
-            <div className="bg-white rounded-2xl p-8 mb-4 flex flex-col items-center justify-center text-center overflow-hidden"
-              style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', minHeight: '200px', position: 'relative' }}
+        <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+
+          {/* LEFT — PDF Upload Area (image style: plain gray box with upload icon) */}
+          <div className="w-full lg:w-[45%] flex flex-col">
+            {/* Upload Box */}
+            <div
+              className="rounded-2xl flex flex-col items-center justify-center cursor-pointer flex-1"
+              style={{
+                backgroundColor: '#e8e8e8',
+                border: '1.5px dashed #c8c8c8',
+                minHeight: '300px',
+                position: 'relative',
+              }}
               onDragOver={handleDragOver}
-              onDrop={handleDrop}>
-              <div style={{
-                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                backgroundImage: 'url("https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?w=800&q=80")',
-                backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.12, zIndex: 0,
-              }} />
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <p className="font-bold text-gray-900 mb-1" style={{ fontSize: '15px' }}>Drag & drop more files</p>
-                <p className="text-xs mb-4" style={{ color: '#9ca3af' }}>or click to browse your computer</p>
-                <div className="flex gap-2 justify-center">
-                  <button onClick={handleBrowseClick} type="button"
-                    className="px-6 py-2.5 text-white font-bold rounded-full hover:bg-gray-700 transition text-sm" style={{ backgroundColor: '#111111' }}>
-                    Browse Files
-                  </button>
-                  <button 
-                    onClick={() => {
-                      // Navigate to document editor (new dedicated editor for documents)
-                      navigate('/document-editor?type=document');
-                    }}
-                    type="button"
-                    className="px-6 py-2.5 font-bold rounded-full hover:bg-orange-600 transition text-sm text-white" 
-                    style={{ backgroundColor: '#ff6a3d' }}
-                  >
-                    Design with Canvas Editor
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Uploaded Files */}
-            <div className="bg-white rounded-2xl p-4 mb-4" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              <div className="flex items-center justify-between mb-3">
-                <p className="font-bold text-gray-900" style={{ fontSize: '14px' }}>
-                  Uploaded Files <span className="text-gray-400 font-normal">({uploadedFiles.length})</span>
-                </p>
-                {uploadedFiles.length > 0 && (
-                  <div className="flex items-center gap-2 px-3 py-1 rounded-lg" style={{ backgroundColor: '#eff6ff' }}>
-                    <svg className="w-4 h-4" style={{ color: '#3b82f6' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span className="text-xs font-bold" style={{ color: '#1e40af' }}>
-                      Total: {uploadedFiles.reduce((sum, file) => sum + (file.pages || 1), 0)} pages
-                    </span>
-                  </div>
-                )}
-              </div>
-              {filesLoading ? (
-                <div className="flex items-center justify-center py-6">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
-                </div>
-              ) : uploadedFiles.length > 0 ? (
-                <div className="space-y-2">
-                  {uploadedFiles.map((file: any) => (
-                    <div key={file.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ border: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: file.mimetype === 'application/pdf' ? '#ef444420' : '#3b82f620' }}>
-                        <svg className="w-4 h-4" style={{ color: file.mimetype === 'application/pdf' ? '#ef4444' : '#3b82f6' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-gray-900 truncate" style={{ fontSize: '12px' }}>{file.name}</p>
-                        <p style={{ fontSize: '11px', color: '#9ca3af' }}>
-                          {file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : 'N/A'} • 
-                          <span className="font-bold" style={{ color: file.pages > 1 ? '#3b82f6' : '#9ca3af' }}>
-                            {' '}{file.pages || 1} {file.pages === 1 ? 'page' : 'pages'}
-                          </span>
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteFile(file.id)}
-                        className="flex-shrink-0 p-1.5 rounded-lg hover:bg-red-50 transition"
-                        style={{ color: '#ef4444' }}
-                        title="Delete file">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
+              onDrop={handleDrop}
+              onClick={handleBrowseClick}
+            >
+              {uploadedFiles.length === 0 ? (
+                /* Empty state — upload icon centered */
+                <div className="flex flex-col items-center justify-center text-center px-6">
+                  <svg width="52" height="52" fill="none" viewBox="0 0 24 24" stroke="#bbbbbb" strokeWidth={1.2} className="mb-3">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="text-sm font-medium" style={{ color: '#bbbbbb' }}>Tap to upload PDF</p>
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 text-center py-4">No files uploaded yet</p>
+                /* Files uploaded — full cover preview, file list outside below */
+                <>
+                  {(() => {
+                    const firstFile = uploadedFiles[0];
+                    const isImage = firstFile?.mimetype?.startsWith('image/');
+                    if (isImage && firstFile?.data) {
+                      // Apply CSS filter based on selected color mode
+                      const imgFilter =
+                        colorMode === 'B&W' ? 'grayscale(100%)' :
+                        colorMode === 'Custom' ? 'sepia(40%) contrast(1.1)' :
+                        'none';
+                      return (
+                        <img
+                          src={firstFile.data}
+                          alt={firstFile.name}
+                          className="w-full h-full object-cover rounded-2xl"
+                          style={{
+                            position: 'absolute', top: 0, left: 0,
+                            filter: imgFilter,
+                            transition: 'filter 0.3s ease',
+                          }}
+                        />
+                      );
+                    }
+                    // PDF or other — centered icon
+                    return (
+                      <div className="flex flex-col items-center justify-center text-center px-6">
+                        <svg width="56" height="56" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={1.2} className="mb-3">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p className="font-bold text-sm" style={{ color: '#ef4444' }}>PDF</p>
+                        <p className="text-xs mt-1 font-semibold text-gray-700 max-w-[160px] truncate">{firstFile.name}</p>
+                        <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>{firstFile.pages || 1} page{(firstFile.pages || 1) > 1 ? 's' : ''}</p>
+                      </div>
+                    );
+                  })()}
+                </>
               )}
             </div>
 
-            {/* Counters */}
-            <div className="bg-white rounded-2xl px-4 py-2" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
-                <span className="text-sm font-medium text-gray-700">Number of copies</span>
-                <Counter value={copies} onChange={setCopies} />
+            {/* File list + Add More — shown below upload box when files exist */}
+            {uploadedFiles.length > 0 && (
+              <div className="mt-3 space-y-1.5" onClick={e => e.stopPropagation()}>
+                {uploadedFiles.map((file: any) => (
+                  <div key={file.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white"
+                    style={{ border: '1px solid #e5e7eb' }}>
+                    <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: file.mimetype === 'application/pdf' ? '#fef2f2' : '#eff6ff' }}>
+                      <svg className="w-3.5 h-3.5" style={{ color: file.mimetype === 'application/pdf' ? '#ef4444' : '#3b82f6' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-gray-900 truncate" style={{ fontSize: '11px' }}>{file.name}</p>
+                      <p style={{ fontSize: '10px', color: '#9ca3af' }}>
+                        {file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : 'N/A'} •{' '}
+                        <span className="font-bold" style={{ color: '#3b82f6' }}>
+                          {file.pages || 1} {file.pages === 1 ? 'page' : 'pages'}
+                        </span>
+                      </p>
+                    </div>
+                    <button onClick={() => handleDeleteFile(file.id)}
+                      className="flex-shrink-0 p-1 rounded-lg hover:bg-red-50 transition" style={{ color: '#ef4444' }}>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={handleBrowseClick}
+                  className="w-full py-2 rounded-xl text-xs font-semibold transition"
+                  style={{ backgroundColor: '#111111', color: '#fff' }}
+                >
+                  + Add More Files
+                </button>
+                <p className="text-center text-xs font-semibold" style={{ color: '#3b82f6' }}>
+                  Total: {uploadedFiles.reduce((sum, f) => sum + (f.pages || 1), 0)} pages
+                </p>
               </div>
-              
-              {/* Graph Sheets - Optional Section */}
-              <div className="py-3">
-                <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Optional Add-ons</p>
-                <div className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <span className="text-sm font-medium text-gray-700">Linear Graph Sheets</span>
-                  <Counter value={linearSheets} onChange={setLinearSheets} />
-                </div>
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm font-medium text-gray-700">Semi Log Graph sheets</span>
-                  <Counter value={semiLog} onChange={setSemiLog} />
-                </div>
-                {(linearSheets > 0 || semiLog > 0) && (
-                  <p className="text-xs text-green-600 mt-2">✓ Graph sheets will be added to your order</p>
-                )}
-              </div>
+            )}
+
+            {/* Delivery time bar */}
+            <div className="mt-4 flex items-center gap-3 px-4 py-3 rounded-2xl"
+              style={{ backgroundColor: '#e8f5e9', border: '1px solid #c8e6c9' }}>
+              <svg className="w-5 h-5 flex-shrink-0" style={{ color: '#2e7d32' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-semibold" style={{ color: '#1b5e20' }}>
+                Delivery by {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', weekday: 'long' })}
+              </span>
+              <svg className="w-4 h-4 ml-auto flex-shrink-0" style={{ color: '#2e7d32' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
           </div>
 
-          {/* Right */}
-          <div className="w-full lg:w-1/2">
-            <Dropdown label="Color Mode" options={['B&W', 'color', 'Custom']} value={colorMode} onChange={setColorMode} />
-            <Dropdown label="Page size" options={['A4', 'A3']} value={pageSize} onChange={setPageSize} />
-            <Dropdown label="Print Side" options={['one-sided', 'Two-sided', '4 in 1 (2 front+2 Back)']} value={printSide} onChange={setPrintSide} />
-            
-            {/* Binding Type */}
-            <Dropdown label="Binding Type" options={['None', 'Soft Binding', 'Spiral Binding', 'Thesis Binding']} value={bindingType} onChange={setBindingType} />
-            
-            {/* Cover Page - Only show if binding type is selected and not "None" */}
-            {bindingType && bindingType !== 'None' && (
-              <Dropdown label="Cover Page" options={['None', 'Transparent', 'Colored', 'Leather-finish']} value={coverPage} onChange={setCoverPage} />
-            )}
+          {/* RIGHT — Options Card (image style) */}
+          <div className="w-full lg:flex-1">
+            <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #e5e7eb', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
 
-            {/* Special Instructions */}
-            <div className="mb-4">
-              <p className="font-semibold text-gray-700 mb-1.5 px-1" style={{ fontSize: '13px' }}>Special Instructions</p>
-              <div className="bg-white rounded-2xl p-4" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                <textarea value={instructions} onChange={e => setInstructions(e.target.value)}
-                  placeholder="Type your instruction here" rows={4}
-                  className="w-full px-4 py-3 rounded-2xl text-sm focus:outline-none resize-none"
-                  style={{ border: '1px solid #e5e7eb', color: '#374151', backgroundColor: '#fafafa' }} />
+              {/* Title */}
+              <h2 className="font-bold text-gray-900 mb-4" style={{ fontSize: '22px' }}>
+                {getPrintTypeLabel()}
+              </h2>
+
+              {/* Color */}
+              <div className="mb-3">
+                <p className="font-semibold text-gray-700 mb-2" style={{ fontSize: '13px' }}>Color</p>
+                <div className="flex gap-2">
+                  {['Black & White', 'Color', 'Custom'].map(opt => (
+                    <button key={opt}
+                      onClick={() => setColorMode(opt === 'Black & White' ? 'B&W' : opt)}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition"
+                      style={{
+                        border: (colorMode === (opt === 'Black & White' ? 'B&W' : opt)) ? '2px solid #111111' : '1.5px solid #e5e7eb',
+                        backgroundColor: (colorMode === (opt === 'Black & White' ? 'B&W' : opt)) ? '#111111' : '#f9fafb',
+                        color: (colorMode === (opt === 'Black & White' ? 'B&W' : opt)) ? '#ffffff' : '#374151',
+                      }}>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Buttons */}
-            <div className="flex flex-col gap-3">
-              {error && <p className="text-sm font-medium text-center" style={{ color: '#ef4444' }}>{error}</p>}
-              <div className="flex items-center gap-3">
-                <button onClick={handleAddToCart} disabled={loading}
-                  className="flex-1 py-3 font-bold rounded-full hover:bg-gray-100 transition text-sm disabled:opacity-60"
-                  style={{ border: '1.5px solid #e5e7eb', color: '#374151', backgroundColor: '#fff' }}>
-                  {loading ? 'Saving...' : 'Add to cart'}
-                </button>
-                <button onClick={handleContinueToPay} disabled={loading}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 text-white font-bold rounded-full hover:bg-gray-700 transition text-sm disabled:opacity-60"
-                  style={{ backgroundColor: '#111111' }}>
-                  {loading ? (
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              {/* Sides */}
+              <div className="mb-3">
+                <p className="font-semibold text-gray-700 mb-2" style={{ fontSize: '13px' }}>Sides</p>
+                <div className="flex gap-2">
+                  {[{ label: 'Single Side', val: 'one-sided' }, { label: 'Both Sides', val: 'Two-sided' }].map(opt => (
+                    <button key={opt.val}
+                      onClick={() => setPrintSide(opt.val)}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition"
+                      style={{
+                        border: printSide === opt.val ? '2px solid #111111' : '1.5px solid #e5e7eb',
+                        backgroundColor: printSide === opt.val ? '#111111' : '#f9fafb',
+                        color: printSide === opt.val ? '#ffffff' : '#374151',
+                      }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Page Size */}
+              <div className="mb-3">
+                <p className="font-semibold text-gray-700 mb-2" style={{ fontSize: '13px' }}>Page Size</p>
+                <div className="flex gap-2">
+                  {['A4', 'A3'].map(opt => (
+                    <button key={opt}
+                      onClick={() => setPageSize(opt)}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition"
+                      style={{
+                        border: pageSize === opt ? '2px solid #111111' : '1.5px solid #e5e7eb',
+                        backgroundColor: pageSize === opt ? '#111111' : '#f9fafb',
+                        color: pageSize === opt ? '#ffffff' : '#374151',
+                      }}>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Number of Copies — below Page Size */}
+              <div className="flex items-center justify-between px-4 py-3 rounded-xl mb-3"
+                style={{ border: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
+                <span className="font-semibold text-gray-800" style={{ fontSize: '14px' }}>Number of Copies</span>
+                <Counter value={copies} onChange={setCopies} />
+              </div>
+
+              {/* Add-ons */}
+              <div className="mb-3 rounded-xl overflow-hidden" style={{ border: '1px solid #e5e7eb' }}>
+                {/* Semi-Log Graph Sheets */}
+                <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <span className="text-sm font-medium text-gray-700">
+                    Semi-Log Graph Sheets <span style={{ color: '#9ca3af' }}>(+ ₹{pricingConfig.graphSheetPrice}.00)</span>
+                  </span>
+                  <button
+                    onClick={() => setSemiLog(s => s + 1)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white transition hover:bg-gray-700"
+                    style={{ backgroundColor: '#111111' }}>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                     </svg>
-                  ) : (
-                    <>
-                      Continue to Pay
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </>
-                  )}
-                </button>
+                  </button>
+                </div>
+                {/* Linear Graph Sheets */}
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-sm font-medium text-gray-700">
+                    Linear Graphs <span style={{ color: '#9ca3af' }}>(+ ₹{pricingConfig.graphSheetPrice}.00)</span>
+                  </span>
+                  <button
+                    onClick={() => setLinearSheets(s => s + 1)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white transition hover:bg-gray-700"
+                    style={{ backgroundColor: '#111111' }}>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
-              {/* Dynamic Price Display */}
-              {(colorMode || pageSize || printSide || uploadedFiles.length > 0) && (
-                <div className="bg-white rounded-2xl p-4 mt-2" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold text-gray-900" style={{ fontSize: '14px' }}>Price Breakdown</h3>
-                    <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-xs font-semibold text-green-600">Live Pricing</span>
+              {/* Show counts if any add-ons selected */}
+              {(semiLog > 0 || linearSheets > 0) && (
+                <div className="flex gap-2 mb-3">
+                  {semiLog > 0 && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                      <span className="text-xs font-semibold" style={{ color: '#166534' }}>Semi-Log: {semiLog}</span>
+                      <button onClick={() => setSemiLog(0)} className="text-xs" style={{ color: '#ef4444' }}>✕</button>
                     </div>
-                  </div>
-
-                  <div className="space-y-2 text-sm">
-                    {/* Printing Cost */}
-                    {colorMode && pageSize && uploadedFiles.length > 0 && (
-                      <div className="flex justify-between items-center">
-                        <span style={{ color: '#6b7280' }}>
-                          Printing ({uploadedFiles.reduce((sum, file) => sum + (file.pages || 1), 0)} pages × {copies} copies)
-                        </span>
-                        <span className="font-semibold text-gray-900">
-                          ₹{(() => {
-                            const baseRate = pricingConfig.basePrice[colorMode as keyof typeof pricingConfig.basePrice]?.[pageSize as 'A4' | 'A3'] || 0;
-                            const sideMultiplier = pricingConfig.printSideMultiplier[printSide as keyof typeof pricingConfig.printSideMultiplier] || 1;
-                            const totalPages = uploadedFiles.reduce((sum, file) => sum + (file.pages || 1), 0);
-                            return (baseRate * totalPages * copies * sideMultiplier).toFixed(2);
-                          })()}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Graph Sheets */}
-                    {(linearSheets > 0 || semiLog > 0) && (
-                      <div className="flex justify-between items-center">
-                        <span style={{ color: '#6b7280' }}>
-                          Graph Sheets ({linearSheets + semiLog} sheets)
-                        </span>
-                        <span className="font-semibold text-gray-900">
-                          ₹{((linearSheets + semiLog) * pricingConfig.graphSheetPrice).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Processing Fee */}
-                    <div className="flex justify-between items-center">
-                      <span style={{ color: '#6b7280' }}>Processing Fee</span>
-                      <span className="font-semibold text-gray-900">₹{pricingConfig.processingFee.toFixed(2)}</span>
+                  )}
+                  {linearSheets > 0 && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                      <span className="text-xs font-semibold" style={{ color: '#166534' }}>Linear: {linearSheets}</span>
+                      <button onClick={() => setLinearSheets(0)} className="text-xs" style={{ color: '#ef4444' }}>✕</button>
                     </div>
+                  )}
+                </div>
+              )}
 
-                    {/* Configuration Details */}
-                    {(colorMode || pageSize || printSide) && (
-                      <div className="pt-2 mt-2" style={{ borderTop: '1px solid #f3f4f6' }}>
-                        <div className="flex flex-wrap gap-2">
-                          {colorMode && (
-                            <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#e0f2fe', color: '#0369a1' }}>
-                              {colorMode}
-                            </span>
-                          )}
-                          {pageSize && (
-                            <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#f0fdf4', color: '#166534' }}>
-                              {pageSize}
-                            </span>
-                          )}
-                          {printSide && (
-                            <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>
-                              {printSide}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Total */}
-                    <div className="flex justify-between items-center pt-3 mt-3" style={{ borderTop: '2px solid #f3f4f6' }}>
-                      <span className="font-bold text-gray-900">Total Amount</span>
-                      <span className="font-bold text-gray-900" style={{ fontSize: '18px', color: '#111111' }}>
-                        ₹{totalPrice.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Price Note */}
-                  <div className="mt-3 p-2 rounded-lg" style={{ backgroundColor: '#eff6ff' }}>
-                    <p className="text-xs" style={{ color: '#1e40af' }}>
-                      💡 Price updates automatically based on your selections. Final price may vary based on actual file complexity.
-                    </p>
+              {/* Binding Type (for binding options) */}
+              {(printType === 'soft-binding' || printType === 'spiral-binding' || printType === 'thesis-binding') && (
+                <div className="mb-3">
+                  <p className="font-semibold text-gray-700 mb-2" style={{ fontSize: '13px' }}>Cover Page</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {['None', 'Transparent', 'Colored', 'Leather-finish'].map(opt => (
+                      <button key={opt}
+                        onClick={() => setCoverPage(opt)}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold transition"
+                        style={{
+                          border: coverPage === opt ? '2px solid #111111' : '1.5px solid #e5e7eb',
+                          backgroundColor: coverPage === opt ? '#111111' : '#f9fafb',
+                          color: coverPage === opt ? '#ffffff' : '#374151',
+                        }}>
+                        {opt}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
+
+              {/* Error */}
+              {error && <p className="text-sm font-medium mb-2 text-center" style={{ color: '#ef4444' }}>{error}</p>}
+
+              {/* Price + Add to Cart */}
+              <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: '1px solid #f3f4f6' }}>
+                <span className="font-bold text-gray-900" style={{ fontSize: '20px' }}>
+                  ₹{totalPrice.toFixed(2)}
+                </span>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={loading}
+                  className="px-8 py-3 font-bold rounded-full transition disabled:opacity-60 group"
+                  style={{
+                    backgroundColor: '#ffffff',
+                    color: '#111111',
+                    border: '2px solid #111111',
+                    fontSize: '14px',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#111111'; (e.currentTarget as HTMLButtonElement).style.color = '#ffffff'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#ffffff'; (e.currentTarget as HTMLButtonElement).style.color = '#111111'; }}
+                >
+                  {loading ? 'Saving...' : 'Add to Cart'}
+                </button>
+              </div>
+
+              {/* Continue to Pay */}
+              <button
+                onClick={handleContinueToPay}
+                disabled={loading}
+                className="w-full mt-3 flex items-center justify-center gap-2 py-3 text-white font-bold rounded-full transition disabled:opacity-60 hover:bg-gray-700"
+                style={{ backgroundColor: '#111111', fontSize: '14px' }}>
+                {loading ? (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <>
+                    Continue to Pay
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </>
+                )}
+              </button>
             </div>
           </div>
 

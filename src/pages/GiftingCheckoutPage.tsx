@@ -8,13 +8,12 @@ import userService from '../services/user.service';
 import orderService from '../services/order.service';
 import walletService from '../services/wallet.service';
 import paymentService from '../services/payment.service';
+import PaymentMethodSelector, { type PaymentMethodType } from '../components/PaymentMethodSelector';
 
-type PaymentMethod = 'razorpay' | 'wallet';
+type PaymentMethod = PaymentMethodType;
 
 const GiftingCheckoutPage: React.FC = () => {
   const [method, setMethod] = useState<PaymentMethod>('razorpay');
-  const [showUpiOptions, setShowUpiOptions] = useState(false);
-  const [selectedUpiApp, setSelectedUpiApp] = useState('');
   const [orderSummary, setOrderSummary] = useState<any>(null);
   const [wallet, setWallet] = useState<any>(null);
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -344,161 +343,11 @@ const GiftingCheckoutPage: React.FC = () => {
             </div>
 
             {/* Payment Method */}
-            <h2 className="font-bold text-gray-900 mb-1" style={{ fontSize: '20px' }}>Payment Method</h2>
-            <p className="text-sm mb-6" style={{ color: '#9ca3af' }}>Choose your preferred payment method.</p>
-
-            {/* Razorpay with UPI Dropdown */}
-            <div className="rounded-xl mb-2" style={{ border: '2px solid #111111', backgroundColor: '#fafafa' }}>
-              <button 
-                onClick={() => setShowUpiOptions(!showUpiOptions)}
-                className="w-full flex items-center justify-between px-3 py-2"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
-                    <svg className="w-3.5 h-3.5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                    </svg>
-                  </div>
-                  <div className="text-left min-w-0">
-                    <p className="font-semibold text-gray-900" style={{ fontSize: '11px' }}>
-                      {selectedUpiApp || 'Pay with Razorpay'}
-                    </p>
-                    <p style={{ color: '#9ca3af', fontSize: '9px' }}>UPI, Cards, Net Banking & More</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: '#111111', border: 'none' }}>
-                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                  </div>
-                  <svg 
-                    className="w-3.5 h-3.5 transition-transform" 
-                    style={{ color: '#6b7280', transform: showUpiOptions ? 'rotate(180deg)' : 'rotate(0deg)' }} 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </button>
-
-              {/* UPI Apps Dropdown - Vertical List */}
-              {showUpiOptions && (
-                <div className="px-3 pb-3 space-y-1.5">
-                  <div className="h-px bg-gray-200 mb-2" />
-                  <p className="font-semibold text-gray-500 mb-2" style={{ fontSize: '9px' }}>CHOOSE UPI APP</p>
-                  
-                  {[
-                    { 
-                      id: 'gpay', 
-                      label: 'Google Pay', 
-                      logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAFyk2Hu-hbJkgcF7nkVkuxTwwYZztsPc_wQ&s',
-                      bgColor: '#4285F4',
-                    },
-                    { 
-                      id: 'phonepe', 
-                      label: 'PhonePe', 
-                      logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTo4x8kSTmPUq4PFzl4HNT0gObFuEhivHOFYg&s',
-                      bgColor: '#5F259F',
-                    },
-                    { 
-                      id: 'paytm', 
-                      label: 'Paytm', 
-                      logo: 'https://play-lh.googleusercontent.com/WDGsMRuVENnZPEpV4DEaXw12qtMY3em85xpmZqcXzeh0iT_eXFtAU9VUj-Z7xNQQd5DMqrkKSs9D0qbI1rlt',
-                      bgColor: '#00BAF2',
-                    },
-                    { 
-                      id: 'bhim', 
-                      label: 'BHIM UPI', 
-                      logo: 'https://play-lh.googleusercontent.com/B5cNBA15IxjCT-8UTXEWgiPcGkJ1C07iHKwm2Hbs8xR3PnJvZ0swTag3abdC_Fj5OfnP',
-                      bgColor: '#FF6900',
-                    }
-                  ].map(app => (
-                    <button 
-                      key={app.id} 
-                      onClick={() => {
-                        setSelectedUpiApp(app.label);
-                        setShowUpiOptions(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 p-2 rounded-lg transition-all hover:bg-gray-50"
-                      style={{ 
-                        border: selectedUpiApp === app.label ? '2px solid #111111' : '1px solid #e5e7eb',
-                        backgroundColor: selectedUpiApp === app.label ? '#f8fafc' : '#ffffff'
-                      }}
-                    >
-                      <div 
-                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: app.bgColor }}
-                      >
-                        <img 
-                          src={app.logo} 
-                          alt={app.label} 
-                          className="w-5 h-5 object-contain"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                      </div>
-                      <span className="font-semibold text-gray-900 flex-1 text-left" style={{ fontSize: '11px' }}>
-                        {app.label}
-                      </span>
-                      {selectedUpiApp === app.label && (
-                        <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-
-                  <div className="flex items-center gap-2 my-2">
-                    <div className="flex-1 h-px bg-gray-200" />
-                    <span className="font-semibold text-gray-400" style={{ fontSize: '9px' }}>OR</span>
-                    <div className="flex-1 h-px bg-gray-200" />
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setSelectedUpiApp('Other UPI Apps');
-                      setShowUpiOptions(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 p-2 rounded-lg transition-all hover:bg-gray-50"
-                    style={{ border: '1px solid #e5e7eb', backgroundColor: '#ffffff' }}
-                  >
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-gray-100">
-                      <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </div>
-                    <span className="font-semibold text-gray-900 flex-1 text-left" style={{ fontSize: '11px' }}>
-                      Other UPI Apps
-                    </span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Wallet Option */}
-            <div className="rounded-xl mb-2 mt-4" style={{ border: method === 'wallet' ? '2px solid #111111' : '1.5px solid #e5e7eb', backgroundColor: method === 'wallet' ? '#fafafa' : '#ffffff' }}>
-              <button onClick={() => setMethod('wallet')} className="w-full flex items-center justify-between px-4 py-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
-                    <svg className="w-4 h-4" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                    </svg>
-                  </div>
-                  <div className="text-left min-w-0">
-                    <p className="font-semibold text-gray-900" style={{ fontSize: '11px' }}>SpeedWallet</p>
-                    <p style={{ color: '#9ca3af', fontSize: '9px' }}>Balance: ₹{(wallet?.balance || 0).toFixed(2)}</p>
-                  </div>
-                </div>
-                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: method === 'wallet' ? '#111111' : 'transparent', border: method === 'wallet' ? 'none' : '1.5px solid #d1d5db' }}>
-                  {method === 'wallet' && <div className="w-2 h-2 rounded-full bg-white" />}
-                </div>
-              </button>
-            </div>
+            <PaymentMethodSelector
+              method={method}
+              onSelect={setMethod}
+              walletBalance={wallet?.balance || 0}
+            />
           </div>
 
           {/* Right - Order Summary */}

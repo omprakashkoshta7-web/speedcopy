@@ -7,51 +7,12 @@ import orderService from '../services/order.service';
 import walletService from '../services/wallet.service';
 import userService from '../services/user.service';
 import paymentService from '../services/payment.service';
+import PaymentMethodSelector, { type PaymentMethodType } from '../components/PaymentMethodSelector';
 
-type PaymentMethod = 'card' | 'upi' | 'wallet' | 'netbanking';
-type PaymentRowProps = {
-  id: PaymentMethod;
-  title: string;
-  desc: string;
-  icon: React.ReactNode;
-  method: PaymentMethod;
-  onSelect: (method: PaymentMethod) => void;
-};
-
-const PaymentRow: React.FC<PaymentRowProps> = ({ id, title, desc, icon, method, onSelect }) => (
-  <button
-    onClick={() => onSelect(id)}
-    className="w-full flex items-center justify-between px-3 py-2 rounded-xl transition text-left"
-    style={{
-      border: method === id ? '2px solid #111111' : '1.5px solid #e5e7eb',
-      backgroundColor: method === id ? '#fafafa' : '#ffffff',
-      marginBottom: '6px',
-    }}
-  >
-    <div className="flex items-center gap-2">
-      <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="font-semibold text-gray-900" style={{ fontSize: '11px' }}>{title}</p>
-        <p style={{ color: '#9ca3af', fontSize: '9px' }}>{desc}</p>
-      </div>
-    </div>
-    <div
-      className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-      style={{ border: method === id ? 'none' : '1.5px solid #d1d5db', backgroundColor: method === id ? '#111111' : 'transparent' }}
-    >
-      {method === id && (
-        <div className="w-1.5 h-1.5 rounded-full bg-white" />
-      )}
-    </div>
-  </button>
-);
+type PaymentMethod = PaymentMethodType;
 
 const CheckoutPage: React.FC = () => {
-  const [method, setMethod] = useState<PaymentMethod>('upi');
-  const [upiId, setUpiId] = useState('');
-  const [selectedUpi, setSelectedUpi] = useState('');
+  const [method, setMethod] = useState<PaymentMethod>('razorpay');
   const [orderSummary, setOrderSummary] = useState<any>(null);
   const [wallet, setWallet] = useState<any>(null);
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -462,157 +423,12 @@ const CheckoutPage: React.FC = () => {
               </button>
             </div>
 
-            <h1 className="font-bold text-gray-900 mb-1" style={{ fontSize: '24px' }}>Payment Method</h1>
-            <p className="text-sm mb-6" style={{ color: '#9ca3af' }}>Select how you'd like to pay for your order.</p>
+            <h1 className="font-bold text-gray-900 mb-6" style={{ fontSize: '24px' }}>Payment Method</h1>
 
-            {/* Credit/Debit Card */}
-            <PaymentRow id="card" title="Credit / Debit Card" desc="Visa, Mastercard, RuPay" method={method} onSelect={setMethod}
-              icon={<svg className="w-5 h-5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>}
-            />
-
-            {/* UPI - expanded */}
-            <div className="rounded-2xl mb-2" style={{ border: method === 'upi' ? '2px solid #111111' : '1.5px solid #e5e7eb', backgroundColor: method === 'upi' ? '#fafafa' : '#ffffff' }}>
-              <button onClick={() => setMethod('upi')} className="w-full flex items-center justify-between px-4 py-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#f3f4f6' }}>
-                    <svg className="w-4 h-4" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <p className="font-bold text-gray-900" style={{ fontSize: '12px' }}>UPI Options</p>
-                    <p className="text-xs" style={{ color: '#9ca3af' }}>Pay directly from your bank account</p>
-                  </div>
-                </div>
-                <div className="w-5 h-5 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: method === 'upi' ? '#111111' : 'transparent', border: method === 'upi' ? 'none' : '1.5px solid #d1d5db' }}>
-                  {method === 'upi' && <div className="w-2 h-2 rounded-full bg-white" />}
-                </div>
-              </button>
-
-              {method === 'upi' && (
-                <div className="px-4 pb-3">
-                  {/* Popular UPI Apps */}
-                  <div className="mb-3">
-                    <p className="text-sm font-semibold text-gray-700 mb-2" style={{ fontSize: '10px' }}>Choose UPI App</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { 
-                          id: 'gpay', 
-                          label: 'Google Pay', 
-                          logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAFyk2Hu-hbJkgcF7nkVkuxTwwYZztsPc_wQ&s',
-                          bgColor: '#4285F4',
-                          textColor: '#ffffff'
-                        },
-                        { 
-                          id: 'phonepe', 
-                          label: 'PhonePe', 
-                          logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTo4x8kSTmPUq4PFzl4HNT0gObFuEhivHOFYg&s',
-                          bgColor: '#5F259F',
-                          textColor: '#ffffff'
-                        },
-                        { 
-                          id: 'paytm', 
-                          label: 'Paytm', 
-                          logo: 'https://play-lh.googleusercontent.com/WDGsMRuVENnZPEpV4DEaXw12qtMY3em85xpmZqcXzeh0iT_eXFtAU9VUj-Z7xNQQd5DMqrkKSs9D0qbI1rlt',
-                          bgColor: '#00BAF2',
-                          textColor: '#ffffff'
-                        },
-                        { 
-                          id: 'bhim', 
-                          label: 'BHIM UPI', 
-                          logo: 'https://play-lh.googleusercontent.com/B5cNBA15IxjCT-8UTXEWgiPcGkJ1C07iHKwm2Hbs8xR3PnJvZ0swTag3abdC_Fj5OfnP',
-                          bgColor: '#FF6900',
-                          textColor: '#ffffff'
-                        }
-                      ].map(app => (
-                        <button 
-                          key={app.id} 
-                          onClick={() => setSelectedUpi(app.id)}
-                          className="w-full flex items-center gap-2.5 p-2 rounded-lg transition-all hover:bg-gray-50"
-                          style={{ 
-                            border: selectedUpi === app.id ? '2px solid #111111' : '1px solid #e5e7eb', 
-                            backgroundColor: selectedUpi === app.id ? '#f8fafc' : '#ffffff'
-                          }}
-                        >
-                          <div 
-                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                            style={{ backgroundColor: app.bgColor }}
-                          >
-                            <img 
-                              src={app.logo} 
-                              alt={app.label} 
-                              className="w-5 h-5 object-contain"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                          <span className="font-semibold text-gray-900 flex-1 text-left" style={{ fontSize: '11px' }}>
-                            {app.label}
-                          </span>
-                          {selectedUpi === app.id && (
-                            <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex-1 h-px bg-gray-200" />
-                    <span className="font-semibold text-gray-400" style={{ fontSize: '9px' }}>OR ENTER UPI ID</span>
-                    <div className="flex-1 h-px bg-gray-200" />
-                  </div>
-
-                  {/* UPI ID Input */}
-                  <div className="mb-3">
-                    <label className="font-semibold text-gray-700 mb-1.5 block" style={{ fontSize: '10px' }}>UPI ID</label>
-                    <div className="relative">
-                      <input 
-                        value={upiId} 
-                        onChange={e => setUpiId(e.target.value)} 
-                        placeholder="yourname@paytm / yourname@gpay"
-                        className="w-full px-3 py-2 pr-16 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                        style={{ 
-                          border: '2px solid #e5e7eb', 
-                          backgroundColor: '#ffffff',
-                          color: '#374151',
-                          fontSize: '11px'
-                        }}
-                      />
-                      <button 
-                        className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg transition hover:bg-gray-100"
-                        style={{ color: '#111111', fontSize: '10px', fontWeight: 'bold' }}
-                      >
-                        Verify
-                      </button>
-                    </div>
-                    <p className="flex items-center gap-1 mt-1.5" style={{ color: '#9ca3af', fontSize: '9px' }}>
-                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      Your UPI ID is encrypted and secure
-                    </p>
-                  </div>
-
-
-                </div>
-              )}
-            </div>
-
-            {/* SpeedWallet */}
-            <PaymentRow id="wallet" title="SpeedWallet" desc={`Available Balance: ₹${wallet?.balance || 0}`} method={method} onSelect={setMethod}
-              icon={<svg className="w-5 h-5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>}
-            />
-
-            {/* Net Banking */}
-            <PaymentRow id="netbanking" title="Net Banking" desc="View all banks" method={method} onSelect={setMethod}
-              icon={<svg className="w-5 h-5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>}
+            <PaymentMethodSelector
+              method={method}
+              onSelect={setMethod}
+              walletBalance={wallet?.balance || 0}
             />
           </div>
 

@@ -76,6 +76,7 @@ const GiftingProductDetailPage: React.FC = () => {
   const [cartAdded, setCartAdded] = useState(false);
   const [cartError, setCartError] = useState('');
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [showOrientationModal, setShowOrientationModal] = useState(false);
   const { isWishlisted, toggleWishlist } = useWishlist();
 
   useEffect(() => {
@@ -468,14 +469,14 @@ const GiftingProductDetailPage: React.FC = () => {
             {/* Action Buttons */}
             <div className="space-y-3">
               <button
-                onClick={() => navigate(`/simple-frame-editor?productId=${product?._id || product?.id || id}&flow=gifting`)}
-                className="w-full px-6 py-3 rounded-full text-sm font-semibold transition flex items-center justify-center gap-2"
-                style={{ border: '1.5px solid #d1d5db', backgroundColor: '#f3f4f6', color: '#374151' }}
+                onClick={() => setShowOrientationModal(true)}
+                className="w-full px-6 py-3 rounded-full text-sm font-bold transition flex items-center justify-center gap-2 text-white hover:opacity-90"
+                style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)', boxShadow: '0 4px 14px rgba(249,115,22,0.3)' }}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
-                Upload Design
+                Customise Now
               </button>
 
               <button
@@ -542,6 +543,100 @@ const GiftingProductDetailPage: React.FC = () => {
         )}
 
       </div>
+
+      {/* Orientation Modal */}
+      {showOrientationModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowOrientationModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-full overflow-hidden"
+            style={{ maxWidth: '480px', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid #f3f4f6' }}>
+              <div>
+                <h2 className="font-bold text-gray-900 text-lg">Choose Frame Orientation</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Select how you want your photo to be displayed</p>
+              </div>
+              <button onClick={() => setShowOrientationModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition text-gray-500 text-lg font-bold">×</button>
+            </div>
+
+            {/* Options */}
+            <div className="p-6 grid grid-cols-3 gap-4">
+              {[
+                {
+                  key: 'portrait',
+                  label: 'Portrait',
+                  sub: 'Tall · 3:4',
+                  icon: (
+                    <div className="w-12 h-16 rounded-lg border-2 border-gray-300 bg-gray-50 flex items-center justify-center">
+                      <svg className="w-6 h-8 text-gray-400" fill="none" viewBox="0 0 24 32" stroke="currentColor">
+                        <rect x="2" y="2" width="20" height="28" rx="2" strokeWidth={2} />
+                        <circle cx="12" cy="14" r="5" strokeWidth={1.5} />
+                      </svg>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'landscape',
+                  label: 'Landscape',
+                  sub: 'Wide · 4:3',
+                  icon: (
+                    <div className="w-16 h-12 rounded-lg border-2 border-gray-300 bg-gray-50 flex items-center justify-center">
+                      <svg className="w-8 h-6 text-gray-400" fill="none" viewBox="0 0 32 24" stroke="currentColor">
+                        <rect x="2" y="2" width="28" height="20" rx="2" strokeWidth={2} />
+                        <circle cx="16" cy="12" r="5" strokeWidth={1.5} />
+                      </svg>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'square',
+                  label: 'Square',
+                  sub: '1:1',
+                  icon: (
+                    <div className="w-14 h-14 rounded-lg border-2 border-gray-300 bg-gray-50 flex items-center justify-center">
+                      <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 28 28" stroke="currentColor">
+                        <rect x="2" y="2" width="24" height="24" rx="2" strokeWidth={2} />
+                        <circle cx="14" cy="14" r="5" strokeWidth={1.5} />
+                      </svg>
+                    </div>
+                  ),
+                },
+              ].map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => {
+                    setShowOrientationModal(false);
+                    navigate(`/simple-frame-editor?productId=${product?._id || product?.id || id}&flow=gifting&orientation=${opt.key}`);
+                  }}
+                  className="flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-orange-50 transition group"
+                  style={{ border: '2px solid #e5e7eb' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.borderColor = '#f97316'}
+                  onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.borderColor = '#e5e7eb'}
+                >
+                  {opt.icon}
+                  <div className="text-center">
+                    <p className="font-bold text-gray-900 text-sm">{opt.label}</p>
+                    <p className="text-xs text-gray-400">{opt.sub}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="px-6 pb-5">
+              <p className="text-xs text-center text-gray-400">
+                You can still adjust the photo inside the editor after selecting
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Share Modal */}
       <ShareModal

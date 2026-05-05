@@ -100,10 +100,22 @@ const RaiseTicketPage: React.FC = () => {
         other: 'Other',
       };
 
+      // Upload attachments first if any
+      let attachmentUrls: string[] = [];
+      if (attachments.length > 0) {
+        try {
+          const uploadRes = await ticketService.uploadAttachments(attachments);
+          attachmentUrls = uploadRes?.data?.attachments || [];
+        } catch (uploadErr) {
+          console.warn('Attachment upload failed, proceeding without attachments:', uploadErr);
+        }
+      }
+
       const payload: any = {
         subject: issueTypeLabel[form.issueType] || 'Support Request',
         description: form.description.trim(),
         category: categoryMap[form.issueType] || 'other',
+        attachments: attachmentUrls,
       };
 
       if (form.orderId && form.orderId !== 'none') {

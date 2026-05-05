@@ -75,6 +75,7 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const HelpPage = lazy(() => import('./pages/HelpPage'));
 const RaiseTicketPage = lazy(() => import('./pages/RaiseTicketPage'));
+const TicketDetailPage = lazy(() => import('./pages/TicketDetailPage'));
 const PrintingPage = lazy(() => import('./pages/PrintingPage'));
 const BusinessPrintingPage = lazy(() => import('./pages/BusinessPrintingPage'));
 const GiftingPage = lazy(() => import('./pages/GiftingPage'));
@@ -145,6 +146,7 @@ const App: React.FC = () => {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/support/ticket" element={<RaiseTicketPage />} />
+            <Route path="/support/ticket/:id" element={<TicketDetailPage />} />
             <Route path="/printing" element={<PrintingPage />} />
             <Route path="/business-printing" element={<BusinessPrintingPage />} />
             <Route path="/gifting" element={<GiftingPage />} />

@@ -103,6 +103,10 @@ const SimpleFrameEditorPage: React.FC = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const readyFileInputRef = useRef<HTMLInputElement>(null);
   const [showAdjustmentControls, setShowAdjustmentControls] = useState(false);
+  // Gallery modal — triggered by clicking photo placeholder in frame
+  const [showGalleryModal, setShowGalleryModal] = useState(false);
+  const [galleryPhotos, setGalleryPhotos] = useState<{ id: string; dataUrl: string }[]>([]);
+  const galleryFileInputRef = useRef<HTMLInputElement>(null);
 
   const productId = searchParams.get('productId');
 
@@ -118,6 +122,28 @@ const SimpleFrameEditorPage: React.FC = () => {
     loadSavedDesigns();
     loadGoogleFonts();
   }, []); // eslint-disable-line
+
+  // ── Refit photos when gallery modal closes ───────────────────────────────
+  useEffect(() => {
+    if (showGalleryModal) return;
+    if (userPhotos.length === 0) return;
+    const timer = setTimeout(async () => {
+      const editorW = editorRef.current?.clientWidth;
+      const editorH = editorRef.current?.clientHeight;
+      if (!editorW || !editorH) return;
+      const frameImg = productImages[activeImageIndex] || '';
+      const inner = frameImg
+        ? await detectFrameInnerBounds(frameImg, editorW, editorH)
+        : { x: editorW * 0.18, y: editorH * 0.18, w: editorW * 0.64, h: editorH * 0.64 };
+      setUserPhotos(prev => prev.map(p => {
+        const scale = Math.max(inner.w / p.width, inner.h / p.height);
+        const w = p.width * scale;
+        const h = p.height * scale;
+        return { ...p, scale, x: inner.x + (inner.w - w) / 2, y: inner.y + (inner.h - h) / 2 };
+      }));
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [showGalleryModal]); // eslint-disable-line
 
   const loadGoogleFonts = () => {
     const link = document.createElement('link');
@@ -374,6 +400,125 @@ const SimpleFrameEditorPage: React.FC = () => {
       setUserPhotos(prev => [...prev, photo]);
       setSelectedPhotoId(photo.id);
     }
+  };
+
+  // ── Gallery: upload photo and auto-fit to frame ──────────────────────────
+  const handleGalleryUpload = async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    const newPhotos: { id: string; dataUrl: string }[] = [];
+    for (const file of Array.from(files)) {
+      const dataUrl = await new Promise<string>((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(String(reader.result));
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+      newPhotos.push({ id: `gal_${Date.now()}_${Math.random().toString(36).slice(2)}`, dataUrl });
+    }
+    setGalleryPhotos(prev => [...prev, ...newPhotos]);
+  };
+
+  // ── Detect inner frame bounds by scanning transparent pixels ────────────
+  const detectFrameInnerBounds = (frameImgSrc: string, editorW: number, editorH: number): Promise<{ x: number; y: number; w: number; h: number }> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          // Scale to editor size for accurate pixel mapping
+          canvas.width = editorW;
+          canvas.height = editorH;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve({ x: editorW * 0.18, y: editorH * 0.18, w: editorW * 0.64, h: editorH * 0.64 }); return; }
+
+          ctx.drawImage(img, 0, 0, editorW, editorH);
+          const data = ctx.getImageData(0, 0, editorW, editorH).data;
+
+          // Find the bounding box of transparent/white pixels (inner area)
+          // We scan from center outward to find where frame starts
+          const cx = Math.floor(editorW / 2);
+          const cy = Math.floor(editorH / 2);
+
+          const isInner = (x: number, y: number) => {
+            const idx = (y * editorW + x) * 4;
+            const r = data[idx], g = data[idx + 1], b = data[idx + 2], a = data[idx + 3];
+            // Transparent OR near-white = inner area
+            return a < 30 || (r > 220 && g > 220 && b > 220 && a > 200);
+          };
+
+          // Scan from center to find edges of inner area
+          let left = cx, right = cx, top = cy, bottom = cy;
+
+          // Scan left
+          for (let x = cx; x >= 0; x--) { if (!isInner(x, cy)) { left = x + 1; break; } left = 0; }
+          // Scan right
+          for (let x = cx; x < editorW; x++) { if (!isInner(x, cy)) { right = x - 1; break; } right = editorW - 1; }
+          // Scan top
+          for (let y = cy; y >= 0; y--) { if (!isInner(cx, y)) { top = y + 1; break; } top = 0; }
+          // Scan bottom
+          for (let y = cy; y < editorH; y++) { if (!isInner(cx, y)) { bottom = y - 1; break; } bottom = editorH - 1; }
+
+          const w = right - left;
+          const h = bottom - top;
+
+          // Sanity check — inner area should be at least 20% of editor
+          if (w < editorW * 0.2 || h < editorH * 0.2) {
+            resolve({ x: editorW * 0.18, y: editorH * 0.18, w: editorW * 0.64, h: editorH * 0.64 });
+          } else {
+            resolve({ x: left, y: top, w, h });
+          }
+        } catch {
+          resolve({ x: editorW * 0.18, y: editorH * 0.18, w: editorW * 0.64, h: editorH * 0.64 });
+        }
+      };
+      img.onerror = () => resolve({ x: editorW * 0.18, y: editorH * 0.18, w: editorW * 0.64, h: editorH * 0.64 });
+      img.src = frameImgSrc;
+    });
+  };
+
+  // Place gallery photo into frame — auto-detect inner area and fit
+  const placeGalleryPhoto = async (dataUrl: string) => {
+    const dims = await new Promise<{ w: number; h: number }>((res) => {
+      const img = new Image();
+      img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = () => res({ w: 300, h: 300 });
+      img.src = dataUrl;
+    });
+
+    const editorW = editorRef.current?.clientWidth || 600;
+    const editorH = editorRef.current?.clientHeight || 500;
+
+    // Get the current frame image
+    const frameImg = productImages[activeImageIndex] || '';
+
+    // Detect inner frame bounds
+    const inner = frameImg
+      ? await detectFrameInnerBounds(frameImg, editorW, editorH)
+      : { x: editorW * 0.18, y: editorH * 0.18, w: editorW * 0.64, h: editorH * 0.64 };
+
+    // Scale photo to cover the inner frame area
+    const scaleX = inner.w / dims.w;
+    const scaleY = inner.h / dims.h;
+    const scale = Math.max(scaleX, scaleY);
+
+    const w = dims.w * scale;
+    const h = dims.h * scale;
+
+    const photo: UserPhoto = {
+      id: `photo_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      dataUrl,
+      x: inner.x + (inner.w - w) / 2,
+      y: inner.y + (inner.h - h) / 2,
+      width: dims.w,
+      height: dims.h,
+      scale,
+      rotation: 0,
+    };
+
+    setUserPhotos([photo]);
+    setSelectedPhotoId(photo.id);
+    setShowGalleryModal(false);
   };
 
   // ── Drag to move ──────────────────────────────────────────────────────────
@@ -758,7 +903,7 @@ const SimpleFrameEditorPage: React.FC = () => {
           <div className="p-4 border-b border-gray-100">
             <h3 className="text-sm font-semibold text-gray-800 mb-3">Add Your Photo</h3>
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setShowGalleryModal(true)}
               className="w-full flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-orange-300 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition"
             >
               <span className="text-3xl">📁</span>
@@ -816,6 +961,25 @@ const SimpleFrameEditorPage: React.FC = () => {
                   <button onClick={() => scalePhoto(1.1)} className="flex-1 py-2 bg-gray-100 rounded-lg text-xs font-medium hover:bg-gray-200">+ Larger</button>
                 </div>
                 <button onClick={fitPhoto} className="w-full py-2 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium hover:bg-orange-200">⊡ Fit to Center</button>
+                <button
+                  onClick={async () => {
+                    if (!selectedPhotoId || !editorRef.current) return;
+                    const editorW = editorRef.current.clientWidth;
+                    const editorH = editorRef.current.clientHeight;
+                    const frameImg = productImages[activeImageIndex] || '';
+                    const inner = frameImg
+                      ? await detectFrameInnerBounds(frameImg, editorW, editorH)
+                      : { x: editorW * 0.18, y: editorH * 0.18, w: editorW * 0.64, h: editorH * 0.64 };
+                    setUserPhotos(prev => prev.map(p => {
+                      if (p.id !== selectedPhotoId) return p;
+                      const scale = Math.max(inner.w / p.width, inner.h / p.height);
+                      const w = p.width * scale;
+                      const h = p.height * scale;
+                      return { ...p, scale, x: inner.x + (inner.w - w) / 2, y: inner.y + (inner.h - h) / 2 };
+                    }));
+                  }}
+                  className="w-full py-2 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200"
+                >🖼️ Fit to Frame</button>
                 <button onClick={() => deletePhoto(selectedPhoto.id)} className="w-full py-2 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 flex items-center justify-center gap-1.5">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -917,12 +1081,13 @@ const SimpleFrameEditorPage: React.FC = () => {
               setSelectedTextId(null);
             }}
           >
-            {/* Product image — fills the editor */}
+            {/* Product frame — on TOP of user photo (z-index 10), creates the frame effect */}
             {activeProductImage ? (
               <img
                 src={activeProductImage}
                 alt={product?.name || 'Product'}
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                style={{ zIndex: 10 }}
                 crossOrigin="anonymous"
                 draggable={false}
               />
@@ -932,7 +1097,7 @@ const SimpleFrameEditorPage: React.FC = () => {
               </div>
             )}
 
-            {/* User photos — draggable, on top */}
+            {/* User photos — BEHIND the frame (z-index 1), frame overlays on top */}
             {userPhotos.map(photo => {
               const w = photo.width * photo.scale;
               const h = photo.height * photo.scale;
@@ -953,7 +1118,7 @@ const SimpleFrameEditorPage: React.FC = () => {
                     cursor: 'move',
                     border: showBorder ? '2px solid #ff6a3d' : 'none',
                     boxSizing: 'border-box',
-                    zIndex: isSelected ? 10 : 5,
+                    zIndex: isSelected ? 2 : 1,  // behind frame (frame is z-index 10)
                   }}
                 >
                   <img
@@ -1158,7 +1323,7 @@ const SimpleFrameEditorPage: React.FC = () => {
                     padding: '2px 4px',
                     border: isSelected ? '1.5px dashed #ff6a3d' : '1.5px dashed transparent',
                     borderRadius: '3px',
-                    zIndex: isSelected ? 15 : 8,
+                    zIndex: isSelected ? 25 : 15,  // above frame (10)
                     whiteSpace: 'nowrap',
                   }}
                 >
@@ -1181,15 +1346,19 @@ const SimpleFrameEditorPage: React.FC = () => {
               );
             })}
 
-            {/* Empty state overlay */}
+            {/* Empty state overlay — click to open gallery */}
             {userPhotos.length === 0 && userTexts.length === 0 && (
               <div
-                className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
-                style={{ background: 'rgba(0,0,0,0.03)' }}
+                className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer"
+                style={{ background: 'rgba(0,0,0,0.04)', zIndex: 20 }}
+                onClick={e => { e.stopPropagation(); setShowGalleryModal(true); }}
               >
-                <span className="text-4xl mb-2">📸</span>
-                <p className="text-gray-500 text-sm font-medium">Upload your photo</p>
-                <p className="text-gray-400 text-xs mt-1">It will appear here</p>
+                <div className="flex flex-col items-center justify-center gap-3 px-8 py-6 rounded-2xl transition hover:bg-black/10"
+                  style={{ border: '2.5px dashed rgba(0,0,0,0.18)' }}>
+                  <span className="text-5xl">🖼️</span>
+                  <p className="text-gray-700 text-sm font-bold">Click to add your photo</p>
+                  <p className="text-gray-400 text-xs">Tap here to open gallery</p>
+                </div>
               </div>
             )}
           </div>
@@ -1225,6 +1394,102 @@ const SimpleFrameEditorPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ── Gallery Modal ────────────────────────────────────────────────── */}
+      {showGalleryModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowGalleryModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-full overflow-hidden flex flex-col"
+            style={{ maxWidth: '700px', maxHeight: '85vh', boxShadow: '0 24px 60px rgba(0,0,0,0.35)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #f3f4f6' }}>
+              <div>
+                <h2 className="font-bold text-gray-900 text-lg">Gallery</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Upload a photo and it will be placed directly in the frame</p>
+              </div>
+              <button
+                onClick={() => setShowGalleryModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition text-gray-500 text-lg font-bold"
+              >×</button>
+            </div>
+
+            {/* Upload button */}
+            <div className="px-6 pt-4 pb-3 flex items-center gap-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
+              <button
+                onClick={() => galleryFileInputRef.current?.click()}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition hover:bg-blue-600"
+                style={{ backgroundColor: '#3b82f6' }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Upload Photo
+              </button>
+              {galleryPhotos.length > 0 && (
+                <span className="text-xs text-gray-400">{galleryPhotos.length} photo{galleryPhotos.length > 1 ? 's' : ''} uploaded</span>
+              )}
+              <input
+                ref={galleryFileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={e => handleGalleryUpload(e.target.files)}
+              />
+            </div>
+
+            {/* Photo grid */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {galleryPhotos.length === 0 ? (
+                <div
+                  className="flex flex-col items-center justify-center py-16 rounded-2xl cursor-pointer hover:bg-gray-50 transition"
+                  style={{ border: '2px dashed #e5e7eb' }}
+                  onClick={() => galleryFileInputRef.current?.click()}
+                >
+                  <span className="text-5xl mb-3">📷</span>
+                  <p className="text-gray-600 font-semibold mb-1">No photos yet</p>
+                  <p className="text-gray-400 text-sm">Click "Upload Photo" or tap here to add images</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {galleryPhotos.map(photo => (
+                    <button
+                      key={photo.id}
+                      onClick={() => placeGalleryPhoto(photo.dataUrl)}
+                      className="relative group aspect-square rounded-xl overflow-hidden hover:ring-4 hover:ring-blue-400 transition"
+                      style={{ border: '2px solid #e5e7eb' }}
+                      title="Click to place in frame"
+                    >
+                      <img src={photo.dataUrl} alt="" className="w-full h-full object-cover" />
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                        <div className="bg-white rounded-full px-3 py-1.5 text-xs font-bold text-gray-800 shadow">
+                          Use this
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                  {/* Add more */}
+                  <button
+                    onClick={() => galleryFileInputRef.current?.click()}
+                    className="aspect-square rounded-xl flex flex-col items-center justify-center hover:bg-gray-100 transition"
+                    style={{ border: '2px dashed #d1d5db' }}
+                  >
+                    <span className="text-2xl mb-1">+</span>
+                    <span className="text-xs text-gray-400">Add more</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Saved Designs Panel ─────────────────────────────────────────── */}
       {showSavedPanel && (

@@ -7,8 +7,9 @@ import walletService from '../services/wallet.service';
 import paymentService from '../services/payment.service';
 import productService, { extractStoresFromResponse, getStoreIdentifier } from '../services/product.service';
 import orderService from '../services/order.service';
+import PaymentMethodSelector, { type PaymentMethodType } from '../components/PaymentMethodSelector';
 
-type PaymentMethod = 'razorpay' | 'wallet';
+type PaymentMethod = PaymentMethodType;
 
 const PrintCheckoutPage: React.FC = () => {
   const [method, setMethod] = useState<PaymentMethod>('razorpay');
@@ -499,50 +500,11 @@ const PrintCheckoutPage: React.FC = () => {
             ) : null}
 
             {/* Payment Method */}
-            <h2 className="font-bold text-gray-900 mb-1" style={{ fontSize: '20px' }}>Payment Method</h2>
-            <p className="text-sm mb-6" style={{ color: '#9ca3af' }}>All payment options will be available in the next step.</p>
-
-            {/* Single Payment Option - Razorpay handles all methods */}
-            <div className="rounded-xl mb-2" style={{ border: '2px solid #111111', backgroundColor: '#fafafa' }}>
-              <div className="w-full flex items-center justify-between px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
-                    <svg className="w-3.5 h-3.5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                    </svg>
-                  </div>
-                  <div className="text-left min-w-0">
-                    <p className="font-semibold text-gray-900" style={{ fontSize: '11px' }}>Pay with Razorpay</p>
-                    <p style={{ color: '#9ca3af', fontSize: '9px' }}>UPI, Cards, Net Banking & More</p>
-                  </div>
-                </div>
-                <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: '#111111', border: 'none' }}>
-                  <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                </div>
-              </div>
-            </div>
-
-            {/* Wallet Option */}
-            <div className="rounded-xl mb-2 mt-4" style={{ border: method === 'wallet' ? '2px solid #111111' : '1.5px solid #e5e7eb', backgroundColor: method === 'wallet' ? '#fafafa' : '#ffffff' }}>
-              <button onClick={() => setMethod('wallet')} className="w-full flex items-center justify-between px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#f3f4f6' }}>
-                    <svg className="w-3.5 h-3.5" style={{ color: '#6b7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                    </svg>
-                  </div>
-                  <div className="text-left min-w-0">
-                    <p className="font-semibold text-gray-900" style={{ fontSize: '11px' }}>SpeedWallet</p>
-                    <p style={{ color: '#9ca3af', fontSize: '9px' }}>Balance: ₹{(wallet?.balance || 0).toFixed(2)}</p>
-                  </div>
-                </div>
-                <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: method === 'wallet' ? '#111111' : 'transparent', border: method === 'wallet' ? 'none' : '1.5px solid #d1d5db' }}>
-                  {method === 'wallet' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                </div>
-              </button>
-            </div>
+            <PaymentMethodSelector
+              method={method}
+              onSelect={setMethod}
+              walletBalance={wallet?.balance || 0}
+            />
           </div>
 
           {/* Right - Order Summary */}
@@ -615,11 +577,13 @@ const PrintCheckoutPage: React.FC = () => {
                 {processing ? 'Processing...' : 
                  !pickupLocation ? 'Select Pickup Location' :
                  !printConfig ? 'Configure Print Job' :
+                 method === 'gpay' ? `Pay with Google Pay ₹${totalAmount.toFixed(2)}` :
+                 method === 'phonepe' ? `Pay with PhonePe ₹${totalAmount.toFixed(2)}` :
                  `Pay ₹${totalAmount.toFixed(2)}`}
               </button>
 
               <p className="text-center text-xs mt-3 font-bold tracking-widest" style={{ color: '#9ca3af' }}>
-                {method === 'wallet' ? 'SPEEDCOPY WALLET' : 'POWERED BY RAZORPAY'}
+                {method === 'wallet' ? 'SPEEDCOPY WALLET' : method === 'gpay' ? 'VIA GOOGLE PAY · RAZORPAY' : method === 'phonepe' ? 'VIA PHONEPE · RAZORPAY' : 'POWERED BY RAZORPAY'}
               </p>
             </div>
           </div>

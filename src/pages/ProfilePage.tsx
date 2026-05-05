@@ -64,75 +64,73 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleSave = async () => {
-    // Basic validation
-    if (!form.name.trim()) {
-      setError('Name is required');
-      return;
-    }
-    
-    if (!form.phone.trim()) {
-      setError('Phone number is required');
-      return;
-    }
-    
-    // Phone validation (basic)
+    if (!form.name.trim()) { setError('Name is required'); return; }
+    if (!form.phone.trim()) { setError('Phone number is required'); return; }
     const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(form.phone.replace(/\D/g, ''))) {
-      setError('Please enter a valid 10-digit phone number');
-      return;
+      setError('Please enter a valid 10-digit phone number'); return;
     }
-    
+
     setSaving(true);
     setError('');
     setSuccess('');
-    
+
     try {
-      // Transform data to match backend schema
+      // ── Step 1: Upload avatar separately if changed ──────────────────────
+      if (avatarFile) {
+        try {
+          await userService.uploadAvatar(avatarFile);
+        } catch (avatarErr: any) {
+          // If dedicated avatar endpoint doesn't exist, compress & include in profile
+          // Compress image to max 200px / 0.6 quality to stay under gateway limit
+          const compressedAvatar = await new Promise<string>((resolve, reject) => {
+            const img = new Image();
+            const url = URL.createObjectURL(avatarFile);
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const MAX = 200;
+              const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+              canvas.width = img.width * ratio;
+              canvas.height = img.height * ratio;
+              canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+              URL.revokeObjectURL(url);
+              resolve(canvas.toDataURL('image/jpeg', 0.6));
+            };
+            img.onerror = reject;
+            img.src = url;
+          });
+
+          // Include compressed avatar in profile update
+          const updateData: any = {
+            name: form.name.trim(),
+            phone: form.phone.trim(),
+            avatar: compressedAvatar,
+          };
+          if (form.gender) updateData.gender = form.gender.toLowerCase();
+          if (form.dob) updateData.dateOfBirth = form.dob;
+
+          await userService.updateProfile(updateData);
+          await refreshUser().catch(() => {});
+          setSuccess('Profile updated successfully!');
+          setTimeout(() => setSuccess(''), 3000);
+          setAvatarFile(null);
+          return;
+        }
+      }
+
+      // ── Step 2: Update text fields only (no avatar base64) ───────────────
       const updateData: any = {
         name: form.name.trim(),
         phone: form.phone.trim(),
       };
-      
-      // Only add optional fields if they have values
-      if (form.gender && form.gender !== '') {
-        updateData.gender = form.gender.toLowerCase(); // Backend expects lowercase
-      }
-      
-      if (form.dob && form.dob !== '') {
-        updateData.dateOfBirth = form.dob; // Backend expects dateOfBirth
-      }
-      
-      // Handle avatar upload
-      if (avatarFile) {
-        // Convert image to base64
-        const reader = new FileReader();
-        const base64Promise = new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(avatarFile);
-        });
-        
-        const base64Avatar = await base64Promise;
-        updateData.avatar = base64Avatar;
-      }
-      
+      if (form.gender) updateData.gender = form.gender.toLowerCase();
+      if (form.dob) updateData.dateOfBirth = form.dob;
+
       await userService.updateProfile(updateData);
-      
-      // Refresh user data in AuthContext to update navbar and sidebar
-      try {
-        console.log('Refreshing user data after profile update...');
-        console.log('Current user before refresh:', user);
-        await refreshUser();
-        console.log('User data refreshed successfully. New user state:', user);
-      } catch (refreshError) {
-        console.error('Failed to refresh user data:', refreshError);
-        // Still show success message even if refresh fails
-      }
-      
+      await refreshUser().catch(() => {});
+
       setSuccess('Profile updated successfully!');
       setTimeout(() => setSuccess(''), 3000);
-      
-      // Clear avatar file after successful upload
       setAvatarFile(null);
     } catch (err: any) {
       console.error('Failed to update profile:', err);

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import authService, { type LoginData, type RegisterData } from '../services/auth.service';
+import userService from '../services/user.service';
 
 interface User {
   _id: string;
@@ -100,21 +101,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const refreshUser = async () => {
     try {
-      console.log('AuthContext: Starting refreshUser...');
-      
-      // Get user from localStorage (already saved by LoginModal)
+      // Try to fetch fresh profile from API
+      const response = await userService.getProfile();
+      const profile = response.data;
+
+      // Merge fresh profile data into stored user
       const storedUser = authService.getCurrentUser();
-      console.log('AuthContext: Stored user from localStorage:', storedUser);
-      
       if (storedUser) {
-        console.log('AuthContext: Setting user from localStorage:', storedUser.name);
-        setUser(storedUser);
-        return;
+        const updatedUser = {
+          ...storedUser,
+          name: profile.name || storedUser.name,
+          avatar: profile.avatar || storedUser.avatar,
+          phone: profile.phone || storedUser.phone,
+        };
+        // Persist back to localStorage so next load is fresh
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
       }
-      
-      console.log('AuthContext: No stored user, skipping API call');
-    } catch (error) {
-      console.error('AuthContext: Failed to refresh user:', error);
+    } catch {
+      // API failed — fall back to localStorage
+      const storedUser = authService.getCurrentUser();
+      if (storedUser) setUser(storedUser);
     }
   };
 

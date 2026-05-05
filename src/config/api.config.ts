@@ -104,7 +104,7 @@ export const API_CONFIG = {
       MARK_READ: (id: string) => `/api/notifications/${id}/read`,
       MARK_ALL_READ: '/api/notifications/read-all',
     },
-    // Tickets
+    // Tickets — Internal service path via gateway
     TICKETS: {
       CREATE: '/api/notifications/tickets',
       GET_ALL: '/api/notifications/tickets',
@@ -115,6 +115,7 @@ export const API_CONFIG = {
       ASSIGN: (id: string) => `/api/notifications/tickets/${id}/assign`,
       UPDATE_STATUS: (id: string) => `/api/notifications/tickets/${id}/status`,
       ESCALATE: (id: string) => `/api/notifications/tickets/${id}/escalate`,
+      UPLOADS: '/api/notifications/tickets/uploads',
     },
     // Vendors
     VENDORS: {
