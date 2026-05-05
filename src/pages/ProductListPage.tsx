@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import BackButton from '../components/BackButton';
 import productService from '../services/product.service';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../context/AuthContext';
@@ -403,6 +404,7 @@ const ProductListPage: React.FC = () => {
   return (
     <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
       <Navbar />
+      <BackButton label="Back" className="mb-6" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
 
         {/* Back to Business Printing button for business printing context */}

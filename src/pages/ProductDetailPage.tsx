@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import BackButton from '../components/BackButton';
 import ShareModal from '../components/ShareModal';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../hooks/useWishlist';
@@ -311,6 +312,7 @@ const ProductDetailPage: React.FC = () => {
   return (
     <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
       <Navbar />
+      <BackButton label="Back" className="mb-6" />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
 
         {/* Breadcrumb */}

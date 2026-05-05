@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import BackButton from '../components/BackButton';
 import orderService from '../services/order.service';
 
 const PaymentSuccessPage: React.FC = () => {
@@ -67,6 +68,7 @@ const PaymentSuccessPage: React.FC = () => {
   return (
     <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
       <Navbar />
+      <BackButton label="Back" className="mb-6" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 flex justify-center">
         <div className="bg-white rounded-3xl p-8 w-full" style={{ maxWidth: '520px', boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
 

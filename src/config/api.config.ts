@@ -1,6 +1,6 @@
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_GATEWAY_URL || 'https://gateway-yvakohiopa-de.a.run.app',
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_GATEWAY_URL || 'https://gateway-202671058278.asia-east1.run.app',
   TIMEOUT: 30000,
   ENDPOINTS: {
     // Auth

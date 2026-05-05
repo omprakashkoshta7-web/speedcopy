@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BackButton from '../components/BackButton';
 
 const recentLocations = [
   { id: '1', label: 'Home', address: '123 Maple Street, Apt 4B, Springfield' },
@@ -22,6 +23,7 @@ const FindCenterPage: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#f0f0f0' }}>
       <div className="w-full max-w-2xl bg-white rounded-3xl p-8 sm:p-12" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+        <BackButton label="Back" className="mb-6" />
         
         {/* Header */}
         <div className="text-center mb-8">

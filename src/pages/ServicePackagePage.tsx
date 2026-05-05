@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import BackButton from '../components/BackButton';
 import FindCenterModal from '../components/FindCenterModal';
 
 type DeliveryType = 'Pickup' | 'Delivery';
@@ -71,6 +72,7 @@ const ServicePackagePage: React.FC = () => {
     <>
     <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
       <Navbar />
+      <BackButton label="Back" className="mb-6" />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
 
         {/* Pickup / Delivery toggle */}

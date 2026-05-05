@@ -1,5 +1,6 @@
 import React from 'react';
 import Navbar from '../components/Navbar';
+import BackButton from '../components/BackButton';
 import MarqueeBanner from '../components/MarqueeBanner';
 import HeroSection from '../components/HeroSection';
 import CategorySection from '../components/CategorySection';
@@ -13,6 +14,7 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#f0f0f0' }}>
       <Navbar />
+      <BackButton label="Back" className="mb-6" />
       <MarqueeBanner />
       <HeroSection />
       <CategorySection />

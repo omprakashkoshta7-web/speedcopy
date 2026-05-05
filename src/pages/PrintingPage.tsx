@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
+import BackButton from '../components/BackButton';
 import Footer from '../components/Footer';
 import productService from '../services/product.service';
 
@@ -147,6 +148,7 @@ const PrintingPage: React.FC = () => {
   return (
     <div style={{ backgroundColor: '#eaecf0', minHeight: '100vh' }}>
       <Navbar />
+      <BackButton label="Back" className="mb-6" />
 
       <div className="max-w-7xl mx-auto px-6 py-16">
 

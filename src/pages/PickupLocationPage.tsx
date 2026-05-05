@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import BackButton from '../components/BackButton';
 import productService, { extractStoresFromResponse, getStoreIdentifier, type StoreQueryParams } from '../services/product.service';
 
 type DeliveryType = 'Pickup' | 'Delivery';
@@ -439,6 +440,7 @@ const PickupLocationPage: React.FC = () => {
     <>
     <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
       <Navbar />
+      <BackButton label="Back" className="mb-6" />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
 
         {/* Pickup / Delivery toggle */}

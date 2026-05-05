@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
+import BackButton from '../components/BackButton';
 import Footer from '../components/Footer';
 
 const ContactPage: React.FC = () => {
@@ -38,6 +39,7 @@ const ContactPage: React.FC = () => {
   return (
     <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
       <Navbar />
+      <BackButton label="Back" className="mb-6" />
       
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
         {/* Header */}

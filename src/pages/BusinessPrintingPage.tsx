@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import BackButton from '../components/BackButton';
 import Footer from '../components/Footer';
 import API_CONFIG from '../config/api.config';
 
@@ -152,6 +153,7 @@ const BusinessPrintingPage: React.FC = () => {
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', overflowX: 'hidden' }}>
       <Navbar />
+      <BackButton label="Back" className="mb-6" />
       
       {/* Marquee Banner - Below Navbar */}
       <div className="bg-black text-white py-2 overflow-hidden">
